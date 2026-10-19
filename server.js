@@ -112,14 +112,14 @@ Réponds UNIQUEMENT avec un objet JSON valide respectant exactement ce schéma :
 }`;
 }
 
-// Fonction d'appel à OmniRoute avec repli automatique (Fallback) si un modèle est temporairement surchargé (503)
+// Fonction d'appel à OmniRoute avec repli automatique (Fallback) rapide (timeout 8s)
 async function callOmniRouteWithFallback({ apiKey, models, messages, temperature = 0.1 }) {
   const errors = [];
 
   for (const model of models) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 22000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const response = await fetch(`${OMNIROUTE_BASE}/chat/completions`, {
         method: 'POST',
@@ -347,15 +347,14 @@ const requestHandler = async (req, res) => {
           );
         }
 
-        // Liste ordonnée des modèles Vision les plus rapides et précis sur OmniRoute (priorité aux modèles Ultra-Fast)
+        // Liste ordonnée des modèles Vision les plus rapides et opérationnels sur OmniRoute
         const defaultChain = [
-          preferredModel || 'gemini/gemini-3.8-flash',
-          'gemini/gemini-3.8-flash',
-          'gemini/gemini-3.7-flash',
-          'gemini/gemini-3-flash-preview',
-          'gemini/gemini-2.5-flash',
+          preferredModel || 'florian/analyse',
           'florian/analyse',
-          'ia'
+          'gemini/gemini-2.5-flash',
+          'ia',
+          'gemini/gemini-3.5-flash-lite',
+          'gemini/gemini-3-flash-preview'
         ];
         const modelChain = [...new Set(defaultChain.filter(Boolean))];
 

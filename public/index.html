@@ -155,8 +155,15 @@
       <!-- État de chargement -->
       <div id="loadingState" class="card loading-state hidden">
         <div class="spinner"></div>
-        <h3 id="loadingStepTitle">Étape 1/2 : Extraction OCR des niveaux de prix...</h3>
-        <p>Interrogation d'OmniRoute avec température 0.0 pour interdire toute invention de prix.</p>
+        <h3 id="loadingStepTitle">Analyse du graphique en cours...</h3>
+        <p id="loadingDesc">Extraction optique des prix et calcul du plan de trade avec OmniRoute...</p>
+        <div class="progress-bar-track" style="background: #1e293b; height: 10px; border-radius: 5px; margin: 16px 0 8px 0; overflow: hidden; border: 1px solid #334155;">
+          <div id="analysisProgressBar" class="progress-bar-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); transition: width 0.3s ease;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+          <span id="loadingPhase">Connexion OmniRoute (Modèle Vision)</span>
+          <strong id="progressPercent" style="color: #38bdf8;">0%</strong>
+        </div>
       </div>
 
       <!-- État d'erreur -->

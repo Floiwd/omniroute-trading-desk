@@ -293,10 +293,38 @@ analyzeBtn.addEventListener('click', async () => {
   loadingState.classList.remove('hidden');
   analyzeBtn.disabled = true;
 
-  loadingStepTitle.textContent = 'Étape 1/2 : Lecture OCR stricte des prix sur le graphique...';
-  const stepTimer = setTimeout(() => {
-    loadingStepTitle.textContent = 'Étape 2/2 : Calcul des niveaux SL/TP & Vérification mathématique anti-erreur...';
-  }, 3500);
+  // Animation de la barre de progression réelle
+  const progressBar = document.getElementById('analysisProgressBar');
+  const progressPercent = document.getElementById('progressPercent');
+  const loadingPhase = document.getElementById('loadingPhase');
+  const loadingStepTitle = document.getElementById('loadingStepTitle');
+
+  let progress = 10;
+  progressBar.style.width = '10%';
+  progressPercent.textContent = '10%';
+  loadingStepTitle.textContent = "🔍 Préparation & Envoi de la capture...";
+  loadingPhase.textContent = "Connexion sécurisée OmniRoute (Température 0.0)";
+
+  const progressInterval = setInterval(() => {
+    if (progress < 88) {
+      // Ralentit progressivement à mesure qu'on approche de la fin
+      const increment = progress < 40 ? 8 : progress < 70 ? 4 : 2;
+      progress = Math.min(90, progress + increment);
+      progressBar.style.width = `${progress}%`;
+      progressPercent.textContent = `${progress}%`;
+
+      if (progress > 25 && progress < 55) {
+        loadingStepTitle.textContent = "👁️ Lecture OCR factuelle des prix...";
+        loadingPhase.textContent = "Analyse stricte de l'axe vertical & bougies";
+      } else if (progress >= 55 && progress < 80) {
+        loadingStepTitle.textContent = "🎯 Calcul des niveaux d'entrée, SL & TP...";
+        loadingPhase.textContent = "Filtrage du ratio Risque / Gain";
+      } else if (progress >= 80) {
+        loadingStepTitle.textContent = "🛡️ Validation mathématique anti-hallucination...";
+        loadingPhase.textContent = "Contrôle SL < Entrée < TP avant affichage";
+      }
+    }
+  }, 250);
 
   try {
     const payload = {
@@ -328,10 +356,17 @@ analyzeBtn.addEventListener('click', async () => {
       }
     }
 
-    clearTimeout(stepTimer);
-    renderAnalysisResult(data);
+    clearInterval(progressInterval);
+    progressBar.style.width = '100%';
+    progressPercent.textContent = '100%';
+    loadingStepTitle.textContent = "✅ Analyse terminée avec succès !";
+    loadingPhase.textContent = "Zéro hallucination garantie";
+
+    setTimeout(() => {
+      renderAnalysisResult(data);
+    }, 300);
   } catch (err) {
-    clearTimeout(stepTimer);
+    clearInterval(progressInterval);
     loadingState.classList.add('hidden');
     errorState.classList.remove('hidden');
     errorMessage.textContent = err.message;

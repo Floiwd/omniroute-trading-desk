@@ -299,32 +299,29 @@ analyzeBtn.addEventListener('click', async () => {
   const loadingPhase = document.getElementById('loadingPhase');
   const loadingStepTitle = document.getElementById('loadingStepTitle');
 
-  let progress = 10;
-  progressBar.style.width = '10%';
-  progressPercent.textContent = '10%';
-  loadingStepTitle.textContent = "🔍 Préparation & Envoi de la capture...";
-  loadingPhase.textContent = "Connexion sécurisée OmniRoute (Température 0.0)";
+  let progress = 15;
+  progressBar.style.width = '15%';
+  progressPercent.textContent = '15%';
+  loadingStepTitle.textContent = "🔍 Envoi de la capture & OCR en cours...";
+  loadingPhase.textContent = "Modèle Vision Ultra-Fast (Température 0.0)";
 
+  // Progression rapide et fluide adaptée au nouveau mode éclair (~1.5s - 2s)
   const progressInterval = setInterval(() => {
-    if (progress < 88) {
-      // Ralentit progressivement à mesure qu'on approche de la fin
-      const increment = progress < 40 ? 8 : progress < 70 ? 4 : 2;
-      progress = Math.min(90, progress + increment);
+    if (progress < 90) {
+      progress += progress < 50 ? 25 : 15;
+      if (progress > 90) progress = 90;
       progressBar.style.width = `${progress}%`;
       progressPercent.textContent = `${progress}%`;
 
-      if (progress > 25 && progress < 55) {
-        loadingStepTitle.textContent = "👁️ Lecture OCR factuelle des prix...";
-        loadingPhase.textContent = "Analyse stricte de l'axe vertical & bougies";
-      } else if (progress >= 55 && progress < 80) {
-        loadingStepTitle.textContent = "🎯 Calcul des niveaux d'entrée, SL & TP...";
-        loadingPhase.textContent = "Filtrage du ratio Risque / Gain";
+      if (progress >= 40 && progress < 80) {
+        loadingStepTitle.textContent = "🎯 Calcul des niveaux & Ratio R:R...";
+        loadingPhase.textContent = "Extraction stricte de l'axe des prix";
       } else if (progress >= 80) {
-        loadingStepTitle.textContent = "🛡️ Validation mathématique anti-hallucination...";
-        loadingPhase.textContent = "Contrôle SL < Entrée < TP avant affichage";
+        loadingStepTitle.textContent = "🛡️ Validation mathématique serveur...";
+        loadingPhase.textContent = "Vérification SL < Entrée < TP";
       }
     }
-  }, 250);
+  }, 300);
 
   try {
     const payload = {

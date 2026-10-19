@@ -389,11 +389,38 @@ function renderAnalysisResult(data) {
   const capital = parseFloat(document.getElementById('capitalInput').value);
   const riskPct = parseFloat(document.getElementById('riskInput').value);
   const hasOrder = action === 'BUY' || action === 'SELL' || (verdict.order_type && verdict.order_type !== 'AUCUN');
+  let maxLossVal = 0;
   if (!isNaN(capital) && !isNaN(riskPct) && hasOrder && action !== 'NO_TRADE') {
-    const maxLoss = ((capital * riskPct) / 100).toFixed(2);
-    document.getElementById('outMaxLossMoney').textContent = `${maxLoss} $ / € (pour ${riskPct}%)`;
+    maxLossVal = ((capital * riskPct) / 100).toFixed(2);
+    document.getElementById('outMaxLossMoney').textContent = `${maxLossVal} $ / € (pour ${riskPct}%)`;
   } else {
     document.getElementById('outMaxLossMoney').textContent = '0.00 (Aucun ordre actif)';
+  }
+
+  // Remplissage du Guide MT5 Pas à Pas
+  const mt5OrderTypeElem = document.getElementById('outMt5OrderType');
+  const mt5ActionElem = document.getElementById('outMt5Action');
+  const mt5VolumeElem = document.getElementById('outMt5Volume');
+  const mt5InstructionElem = document.getElementById('outMt5Instruction');
+
+  const oType = (verdict.order_type || '').toUpperCase();
+  if (action === 'WAIT' || action === 'NO_TRADE') {
+    mt5OrderTypeElem.textContent = 'AUCUN ORDRE (ATTENDRE)';
+    mt5ActionElem.textContent = 'NE RIEN FAIRE SUR MT5';
+    mt5VolumeElem.textContent = 'Lot = 0 (Pas de risque)';
+    mt5InstructionElem.textContent = `🛑 SÉCURITÉ ANTI-HALLUCINATION : Le système vous demande de patienter (${verdict.headline_reason || 'Signal non optimal'}). Ne placez aucun ordre tant que le prix n atteint pas les zones clés.`;
+  } else if (oType.includes('LIMIT') || oType.includes('STOP') || oType.includes('PENDING')) {
+    const isBuy = action === 'BUY' || oType.includes('BUY');
+    mt5OrderTypeElem.textContent = isBuy ? 'Buy Limit (Ordre en attente)' : 'Sell Limit (Ordre en attente)';
+    mt5ActionElem.textContent = isBuy ? 'ACHAT SUR REPLI' : 'VENTE SUR REBOND';
+    mt5VolumeElem.textContent = `Risque : ${riskPct}% (~${maxLossVal} $ / € max)`;
+    mt5InstructionElem.textContent = `📋 DANS MT5 : Sélectionnez "Ordre en attente" -> Type: "${isBuy ? 'Buy Limit' : 'Sell Limit'}" -> Prix: ${inputs.entry_price} -> SL: ${inputs.stop_loss} -> TP: ${inputs.take_profit_1}.`;
+  } else {
+    const isBuy = action === 'BUY';
+    mt5OrderTypeElem.textContent = isBuy ? 'Execution Instantanée (Buy Market)' : 'Execution Instantanée (Sell Market)';
+    mt5ActionElem.textContent = isBuy ? 'ACHETER DIRECT' : 'VENDRE DIRECT';
+    mt5VolumeElem.textContent = `Risque : ${riskPct}% (~${maxLossVal} $ / € max)`;
+    mt5InstructionElem.textContent = `📋 DANS MT5 : Cliquez sur "${isBuy ? 'Buy by Market' : 'Sell by Market'}" immédiatement -> Entrez le SL à ${inputs.stop_loss} et le TP à ${inputs.take_profit_1}.`;
   }
 
   // Invalidation & Confluences

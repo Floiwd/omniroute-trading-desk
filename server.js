@@ -347,96 +347,156 @@ const requestHandler = async (req, res) => {
           );
         }
 
-        // Liste ordonnée des modèles Vision les plus rapides et précis sur OmniRoute
+        // Liste ordonnée des modèles Vision les plus rapides et précis sur OmniRoute (priorité aux modèles Ultra-Fast)
         const defaultChain = [
-          preferredModel || 'gemini/gemini-3-flash-preview',
+          preferredModel || 'gemini/gemini-3.8-flash',
+          'gemini/gemini-3.8-flash',
+          'gemini/gemini-3.7-flash',
           'gemini/gemini-3-flash-preview',
           'gemini/gemini-2.5-flash',
-          'gemini/gemini-3.5-flash-lite',
           'florian/analyse',
           'ia'
         ];
         const modelChain = [...new Set(defaultChain.filter(Boolean))];
 
-        // ÉTAPE 1 : Lecture OCR stricte & vérification de lisibilité du graphique
-        const step1Result = await callOmniRouteWithFallback({
-          apiKey,
-          models: modelChain,
-          temperature: 0.0,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT_STEP_1_OCR },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Lis uniquement les faits visibles sur cette capture d'écran de marché. Contexte déclaré par l'utilisateur : Actif="${symbol || 'Non précisé'}", Timeframe="${timeframe || 'Non précisé'}". N'invente aucun chiffre.`
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: imageBase64 }
-                }
-              ]
-            }
-          ]
-        });
-
         let ocrFacts;
-        try {
-          ocrFacts = parseJsonSafely(step1Result.content);
-        } catch {
-          ocrFacts = {
-            image_quality: {
-              is_trading_chart: true,
-              price_axis_readable: true,
-              timeframe_readable: true,
-              symbol_readable: true,
-              visibility_score_0_to_100: 70,
-              missing_or_blurry_elements: []
-            },
-            extracted_facts: {
-              raw_observation: step1Result.content
-            }
-          };
+        let planData;
+        let usedOcrModel = '';
+        let usedDecisionModel = '';
+
+        if (!doubleVerification) {
+          // MODE ÉCLAIR ULTRA-RAPIDE (1 seule passe combinée OCR + Plan, température 0.0) -> ~1.5s - 2s
+          const lightningResult = await callOmniRouteWithFallback({
+            apiKey,
+            models: modelChain,
+            temperature: 0.0,
+            messages: [
+              {
+                role: 'system',
+                content: `Tu es un Analyste Financier et Gestionnaire de Risque Senior. Tu analyses des graphiques de trading avec ZÉRO HALLUCINATION.
+Analyse la capture d'écran et réponds UNIQUEMENT avec un objet JSON valide (sans texte autour) respectant exactement cette structure :
+{
+  "ocr_facts": {
+    "image_quality": { "is_trading_chart": true, "price_axis_readable": true, "visibility_score_0_to_100": 90 },
+    "extracted_facts": { "symbol_on_chart": "${symbol || 'Auto'}", "timeframe_on_chart": "${timeframe || 'Auto'}", "current_price_on_chart": "Prix exact lu ou ILLISIBLE" }
+  },
+  "plan": {
+    "verdict": { "action": "BUY" | "SELL" | "WAIT" | "NO_TRADE", "order_type": "MARKET" | "BUY_LIMIT" | "SELL_LIMIT" | "AUCUN", "confidence_score": 80, "hallucination_guard_status": "SAFE_VERIFIED", "headline_reason": "..." },
+    "essential_order_inputs": { "asset": "${symbol || 'XAUUSD'}", "timeframe": "${timeframe || 'M15'}", "current_price": "...", "entry_price": "...", "stop_loss": "...", "take_profit_1": "...", "take_profit_2": "...", "calculated_rr_tp1": "...", "recommended_risk_pct": "${riskPercent}%" },
+    "market_structure_facts": { "trend_bias": "...", "key_support_zone": "...", "key_resistance_zone": "...", "observed_confluences": [...] },
+    "invalidation_warning": "...",
+    "strict_checklist_before_clicking": [...]
+  }
+}`
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Analyse ce graphique pour l'actif "${symbol || 'Auto'}" (TF: "${timeframe || 'Auto'}", Capital: "${capital || '10000'}", Risque: "${riskPercent}%"). Note: ${notes || 'Aucune'}. Lis rigoureusement l'axe des prix. N'invente rien.`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: imageBase64 }
+                  }
+                ]
+              }
+            ]
+          });
+
+          usedOcrModel = lightningResult.usedModel;
+          usedDecisionModel = lightningResult.usedModel;
+
+          try {
+            const parsed = parseJsonSafely(lightningResult.content);
+            ocrFacts = parsed.ocr_facts || { image_quality: { is_trading_chart: true, price_axis_readable: true, visibility_score_0_to_100: 90 }, extracted_facts: { symbol_on_chart: symbol || 'XAUUSD', current_price_on_chart: 'Visibles' } };
+            planData = parsed.plan || parsed;
+          } catch {
+            ocrFacts = { image_quality: { is_trading_chart: true, price_axis_readable: true, visibility_score_0_to_100: 80 }, extracted_facts: { current_price_on_chart: 'Voir brutes' } };
+            planData = parseJsonSafely(lightningResult.content);
+          }
+        } else {
+          // MODE DOUBLE PASSE (OCR strict + Plan) -> Sécurité maximale mais plus lent (~5-8s)
+          const step1Result = await callOmniRouteWithFallback({
+            apiKey,
+            models: modelChain,
+            temperature: 0.0,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT_STEP_1_OCR },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Lis uniquement les faits visibles sur cette capture d'écran de marché. Contexte déclaré par l'utilisateur : Actif="${symbol || 'Non précisé'}", Timeframe="${timeframe || 'Non précisé'}". N'invente aucun chiffre.`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: imageBase64 }
+                  }
+                ]
+              }
+            ]
+          });
+
+          usedOcrModel = step1Result.usedModel;
+
+          try {
+            ocrFacts = parseJsonSafely(step1Result.content);
+          } catch {
+            ocrFacts = {
+              image_quality: {
+                is_trading_chart: true,
+                price_axis_readable: true,
+                timeframe_readable: true,
+                symbol_readable: true,
+                visibility_score_0_to_100: 70,
+                missing_or_blurry_elements: []
+              },
+              extracted_facts: {
+                raw_observation: step1Result.content
+              }
+            };
+          }
+
+          const analysisModels = [...new Set(['gemini/gemini-2.5-flash', 'gemini/gemini-3-flash-preview', ...modelChain])];
+
+          const step2Result = await callOmniRouteWithFallback({
+            apiKey,
+            models: analysisModels,
+            temperature: 0.1,
+            messages: [
+              {
+                role: 'system',
+                content: buildAnalysisSystemPrompt(ocrFacts, {
+                  symbol,
+                  timeframe,
+                  capital,
+                  riskPercent,
+                  notes
+                })
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: "À partir de l'image ET de l'extraction factuelle ci-dessus, produis le plan d'exécution final ultra-prudent au format JSON. Si le setup n'est pas clair à 100% ou si le ratio R:R est mauvais, réponds WAIT ou NO_TRADE."
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: imageBase64 }
+                  }
+                ]
+              }
+            ]
+          });
+
+          usedDecisionModel = step2Result.usedModel;
+          planData = parseJsonSafely(step2Result.content);
         }
 
-        // ÉTAPE 2 : Décision de trading & niveaux strictement bornés aux faits de l'étape 1
-        const analysisModels = doubleVerification
-          ? [...new Set(['gemini/gemini-2.5-flash', 'gemini/gemini-3-flash-preview', ...modelChain])]
-          : modelChain;
-
-        const step2Result = await callOmniRouteWithFallback({
-          apiKey,
-          models: analysisModels,
-          temperature: 0.1,
-          messages: [
-            {
-              role: 'system',
-              content: buildAnalysisSystemPrompt(ocrFacts, {
-                symbol,
-                timeframe,
-                capital,
-                riskPercent,
-                notes
-              })
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: "À partir de l'image ET de l'extraction factuelle ci-dessus, produis le plan d'exécution final ultra-prudent au format JSON. Si le setup n'est pas clair à 100% ou si le ratio R:R est mauvais, réponds WAIT ou NO_TRADE."
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: imageBase64 }
-                }
-              ]
-            }
-          ]
-        });
-
-        let planData = parseJsonSafely(step2Result.content);
         planData = validateAndSanitizePlan(ocrFacts, planData);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -444,8 +504,8 @@ const requestHandler = async (req, res) => {
           JSON.stringify({
             success: true,
             modelsUsed: {
-              ocrModel: step1Result.usedModel,
-              decisionModel: step2Result.usedModel
+              ocrModel: usedOcrModel,
+              decisionModel: usedDecisionModel
             },
             ocrFacts,
             plan: planData

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmniRoute Trading Desk — Zéro Hallucination</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">OR</div>
+      <div>
+        <h1>OmniRoute Trading Desk</h1>
+        <p class="subtitle">Extraction Factuelle &bull; Double Vérification Anti-Hallucination &bull; Zéro Trade Forcé</p>
+      </div>
+    </div>
+
+    <div class="connection-bar">
+      <div id="omniStatusBadge" class="status-badge checking">
+        <span class="dot"></span>
+        <span id="omniStatusText">Connexion à OmniRoute...</span>
+      </div>
+      <button id="toggleKeyBtn" class="btn-ghost" title="Configurer ou vérifier la clé OmniRoute">
+        🔑 Clé API : <span id="maskedKeyLabel">Auto (Keychain)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Panneau déroulant pour la clé API / Modèle -->
+  <section id="apiConfigDrawer" class="config-drawer hidden">
+    <div class="config-grid">
+      <div class="field">
+        <label for="customApiKey">Clé API OmniRoute (Optionnel si déjà dans votre Trousseau macOS)</label>
+        <input type="password" id="customApiKey" placeholder="Laissez vide pour utiliser automatiquement votre clé 'omniroute-ia'" />
+      </div>
+      <div class="field">
+        <label for="preferredModel">Combo / Modèle Vision Principal</label>
+        <select id="preferredModel">
+          <option value="gemini/gemini-3-flash-preview" selected>gemini/gemini-3-flash-preview (Recommandé — Ultra-Rapide & Vision HD)</option>
+          <option value="gemini/gemini-2.5-flash">gemini/gemini-2.5-flash (Vision Haute Précision)</option>
+          <option value="florian/analyse">florian/analyse (Combo Analyse)</option>
+          <option value="gratuit/analyse">gratuit/analyse (Combo Gratuit)</option>
+          <option value="ia">ia (Combo Auto)</option>
+        </select>
+      </div>
+      <div class="field checkbox-field">
+        <label class="toggle-label">
+          <input type="checkbox" id="doubleVerification" checked />
+          <span>Activer la <strong>Double Passe Anti-Hallucination</strong> (OCR strict + Validation Mathématique SL/TP)</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <main class="workspace">
+    <!-- COLONNE GAUCHE : DÉPÔT CAPTURE & PARAMÈTRES -->
+    <section class="left-panel">
+      <div class="card">
+        <div class="card-header">
+          <h2>1. Capture d'écran du graphique</h2>
+          <span class="badge-hint">Glisser-déposer ou Cmd+V</span>
+        </div>
+
+        <div id="dropZone" class="drop-zone" tabindex="0">
+          <input type="file" id="fileInput" accept="image/*" hidden />
+          <div id="dropPlaceholder" class="drop-placeholder">
+            <div class="upload-icon">📈</div>
+            <p class="drop-title">Déposez votre capture TradingView / MT5 ici</p>
+            <p class="drop-sub">ou appuyez sur <kbd>⌘ Cmd</kbd> + <kbd>V</kbd> pour coller directement depuis le presse-papiers</p>
+            <button type="button" id="browseBtn" class="btn-secondary">Choisir une image</button>
+          </div>
+
+          <div id="previewContainer" class="preview-container hidden">
+            <img id="chartPreview" alt="Aperçu du graphique" />
+            <div class="preview-actions">
+              <button type="button" id="changeImageBtn" class="btn-small">Changer l'image</button>
+              <button type="button" id="demoChartBtn" class="btn-small">Tester avec un graphique démo</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="safety-rule-banner">
+          <strong>⚠️ Règle d'or pour éviter toute hallucination :</strong>
+          Assurez-vous que <u>l'échelle des prix à droite</u> et <u>le nom de l'actif / unité de temps</u> sont bien visibles sur la capture. Si l'axe des prix est coupé, l'IA bloquera automatiquement l'ordre.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>2. Contexte du Trade (Optionnel mais recommandé)</h2>
+          <button type="button" id="loadDemoBtn" class="btn-link">Charger un graphique test</button>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="symbolInput">Actif / Paire</label>
+            <input type="text" id="symbolInput" placeholder="Ex: XAUUSD, BTCUSDT, EURUSD..." />
+          </div>
+          <div class="field">
+            <label for="timeframeInput">Unité de temps (Timeframe)</label>
+            <select id="timeframeInput">
+              <option value="">Lecture auto sur l'image</option>
+              <option value="M1">M1 (1 minute)</option>
+              <option value="M5">M5 (5 minutes)</option>
+              <option value="M15">M15 (15 minutes)</option>
+              <option value="M30">M30 (30 minutes)</option>
+              <option value="H1">H1 (1 heure)</option>
+              <option value="H4">H4 (4 heures)</option>
+              <option value="D1">D1 (Journalier)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="capitalInput">Capital du compte ($ / €)</label>
+            <input type="number" id="capitalInput" placeholder="Ex: 10000" value="10000" />
+          </div>
+          <div class="field">
+            <label for="riskInput">Risque max autorisé (%)</label>
+            <select id="riskInput">
+              <option value="0.25">0.25% (Ultra-prudent / Prop Firm)</option>
+              <option value="0.5" selected>0.50% (Prudent)</option>
+              <option value="1">1.00% (Standard)</option>
+              <option value="2">2.00% (Agressif)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top: 12px;">
+          <label for="notesInput">Votre biais ou question précise (Optionnel)</label>
+          <input type="text" id="notesInput" placeholder="Ex: Je cherche un rebond sur support, ou dis-moi si c'est trop risqué..." />
+        </div>
+
+        <button id="analyzeBtn" class="btn-primary" disabled>
+          🔍 Analyser le graphique (Mode Zéro Hallucination)
+        </button>
+      </div>
+    </section>
+
+    <!-- COLONNE DROITE : UNIQUEMENT LES INFOS ESSENTIELLES À METTRE -->
+    <section class="right-panel">
+      <!-- État initial vide -->
+      <div id="emptyState" class="card empty-state">
+        <div class="shield-icon">🛡️</div>
+        <h3>Prêt à analyser votre graphique sans hallucination</h3>
+        <p>
+          Déposez une capture d'écran à gauche. Le système procède en <strong>2 étapes strictes</strong> via votre clé OmniRoute :
+        </p>
+        <ol class="steps-list">
+          <li><strong>Étape 1 (OCR Factuel) :</strong> Lecture stricte des prix sur l'axe vertical, du symbole et des bougies visibles (température 0.0).</li>
+          <li><strong>Étape 2 (Filtre Risque & Niveaux) :</strong> Génération uniquement des paramètres d'ordre essentiels (Entrée, Stop Loss, TP1, TP2). Si le setup est incertain, le système affiche <strong>NE PAS TRADER</strong>.</li>
+          <li><strong>Étape 3 (Contrôle Mathématique Serveur) :</strong> Vérification automatique de la cohérence <code>SL &lt; Entrée &lt; TP</code> avant affichage.</li>
+        </ol>
+      </div>
+
+      <!-- État de chargement -->
+      <div id="loadingState" class="card loading-state hidden">
+        <div class="spinner"></div>
+        <h3 id="loadingStepTitle">Étape 1/2 : Extraction OCR des niveaux de prix...</h3>
+        <p>Interrogation d'OmniRoute avec température 0.0 pour interdire toute invention de prix.</p>
+      </div>
+
+      <!-- État d'erreur -->
+      <div id="errorState" class="card error-state hidden">
+        <h3>❌ Erreur lors de l'analyse</h3>
+        <p id="errorMessage"></p>
+      </div>
+
+      <!-- RÉSULTAT : UNIQUEMENT L'ESSENTIEL À SAISIR -->
+      <div id="resultContainer" class="result-container hidden">
+        <!-- BANNIÈRE VERDICT -->
+        <div id="verdictCard" class="verdict-card">
+          <div class="verdict-top">
+            <div>
+              <span class="verdict-label">DÉCISION RECOMMANDÉE</span>
+              <div class="verdict-main">
+                <span id="verdictAction" class="verdict-action">ATTENDRE</span>
+                <span id="verdictOrderType" class="verdict-order-type">AUCUN ORDRE</span>
+              </div>
+            </div>
+            <div class="confidence-box">
+              <span class="conf-label">Indice de Certitude</span>
+              <span id="confidenceScore" class="conf-value">--%</span>
+              <span id="guardStatusBadge" class="guard-badge">VÉRIFIÉ</span>
+            </div>
+          </div>
+          <p id="headlineReason" class="headline-reason"></p>
+        </div>
+
+        <!-- TICKET D'ORDRE : UNIQUEMENT LES INFOS À METTRE SUR MT4/MT5/TRADINGVIEW -->
+        <div class="card ticket-card">
+          <div class="card-header">
+            <h2>🎯 Infos Essentielles à saisir sur votre plateforme</h2>
+            <button id="copyTicketBtn" class="btn-small">📋 Copier le ticket</button>
+          </div>
+
+          <div class="asset-strip">
+            <div class="asset-item">
+              <span class="lbl">ACTIF LU</span>
+              <strong id="outAsset">--</strong>
+            </div>
+            <div class="asset-item">
+              <span class="lbl">TIMEFRAME</span>
+              <strong id="outTimeframe">--</strong>
+            </div>
+            <div class="asset-item">
+              <span class="lbl">PRIX ACTUEL LU</span>
+              <strong id="outCurrentPrice">--</strong>
+            </div>
+            <div class="asset-item">
+              <span class="lbl">BIAIS STRUCTURE</span>
+              <strong id="outTrendBias">--</strong>
+            </div>
+          </div>
+
+          <div class="levels-grid">
+            <div class="level-box entry-box">
+              <div class="level-head">
+                <span>🔵 PRIX D'ENTRÉE</span>
+                <button class="copy-val-btn" data-target="outEntry" title="Copier">Copier</button>
+              </div>
+              <div id="outEntry" class="level-value">--</div>
+            </div>
+
+            <div class="level-box sl-box">
+              <div class="level-head">
+                <span>🛑 STOP LOSS (OBLIGATOIRE)</span>
+                <button class="copy-val-btn" data-target="outSL" title="Copier">Copier</button>
+              </div>
+              <div id="outSL" class="level-value">--</div>
+            </div>
+
+            <div class="level-box tp1-box">
+              <div class="level-head">
+                <span>🟢 TAKE PROFIT 1 (Sécurisation)</span>
+                <button class="copy-val-btn" data-target="outTP1" title="Copier">Copier</button>
+              </div>
+              <div id="outTP1" class="level-value">--</div>
+            </div>
+
+            <div class="level-box tp2-box">
+              <div class="level-head">
+                <span>🎯 TAKE PROFIT 2 (Final)</span>
+                <button class="copy-val-btn" data-target="outTP2" title="Copier">Copier</button>
+              </div>
+              <div id="outTP2" class="level-value">--</div>
+            </div>
+          </div>
+
+          <div class="risk-strip">
+            <div class="risk-pill">
+              <span>Ratio Risque / Gain :</span>
+              <strong id="outRR">--</strong>
+            </div>
+            <div class="risk-pill">
+              <span>Risque conseillé :</span>
+              <strong id="outRiskPct">--</strong>
+            </div>
+            <div class="risk-pill">
+              <span>Perte max autorisée (€/$) :</span>
+              <strong id="outMaxLossMoney">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- INVALIDATION & CHECKLIST AVANT DE CLIQUER -->
+        <div class="card">
+          <div class="invalidation-box">
+            <span class="inv-title">🚨 CONDITION D'ANNULATION IMMÉDIATE (QUAND NE PAS ENTRER / SORTIR) :</span>
+            <p id="outInvalidation">--</p>
+          </div>
+
+          <div class="two-cols-details">
+            <div>
+              <h3>📌 Faits visuels vérifiés sur l'image</h3>
+              <ul id="outConfluences" class="clean-list"></ul>
+              <div class="zones-summary">
+                <div><span>Support clé lu :</span> <strong id="outSupport">--</strong></div>
+                <div><span>Résistance clé lue :</span> <strong id="outResistance">--</strong></div>
+              </div>
+            </div>
+            <div>
+              <h3>✅ Checklist stricte avant d'exécuter</h3>
+              <ul id="outChecklist" class="clean-list checklist"></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- PREUVE D'AUDIT ANTI-HALLUCINATION (ÉTAPE 1 OCR + MATHS) -->
+        <div class="card audit-card">
+          <div class="card-header">
+            <h2>🔬 Audit Anti-Hallucination & Lecture Brute (Preuve de fiabilité)</h2>
+            <span id="outModelsUsed" class="model-tag"></span>
+          </div>
+          <ul id="outAuditFlags" class="audit-list"></ul>
+          <details class="ocr-details">
+            <summary>Voir les données brutes extraites à l'Étape 1 (OCR JSON)</summary>
+            <pre id="outRawOcr"></pre>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

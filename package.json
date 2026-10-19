@@ -1,0 +1,9 @@
+{
+  "name": "omniroute-trading-analyzer",
+  "version": "1.0.0",
+  "description": "Analyseur de graphiques Trading Ultra-Prudent connecté à OmniRoute (Zéro Hallucination)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

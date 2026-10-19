@@ -347,14 +347,15 @@ const requestHandler = async (req, res) => {
           );
         }
 
-        // Liste ordonnée des modèles Vision les plus rapides et opérationnels sur OmniRoute
+        // Liste ordonnée des modèles Vision les plus rapides sur OmniRoute
         const defaultChain = [
-          preferredModel || 'florian/analyse',
-          'florian/analyse',
+          preferredModel || 'gemini/gemini-3.8-flash',
+          'gemini/gemini-3.8-flash',
+          'gemini/gemini-3.7-flash',
+          'gemini/gemini-3-flash-preview',
           'gemini/gemini-2.5-flash',
-          'ia',
-          'gemini/gemini-3.5-flash-lite',
-          'gemini/gemini-3-flash-preview'
+          'florian/analyse',
+          'ia'
         ];
         const modelChain = [...new Set(defaultChain.filter(Boolean))];
 

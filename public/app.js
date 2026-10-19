@@ -25,7 +25,18 @@ const errorState = document.getElementById('errorState');
 const errorMessage = document.getElementById('errorMessage');
 const resultContainer = document.getElementById('resultContainer');
 
-// 1. Vérifier la connexion OmniRoute + Clé Keychain au démarrage
+// 1. Vérifier la connexion OmniRoute + Clé Keychain au démarrage (Supporte Backend Local OU Appel Direct Navigateur depuis Vercel)
+const LOCAL_OMNIROUTE_URL = 'http://127.0.0.1:20128/v1';
+
+// Sauvegarde/restauration de la clé dans le navigateur (utile sur Vercel)
+const savedKey = localStorage.getItem('omniroute_api_key') || '';
+if (savedKey) {
+  document.getElementById('customApiKey').value = savedKey;
+}
+document.getElementById('customApiKey').addEventListener('input', e => {
+  localStorage.setItem('omniroute_api_key', e.target.value.trim());
+});
+
 async function checkOmniRouteStatus() {
   try {
     const res = await fetch('/api/status');
@@ -34,21 +45,39 @@ async function checkOmniRouteStatus() {
     if (data.omnirouteOnline) {
       omniStatusBadge.className = 'status-badge online';
       omniStatusText.textContent = `OmniRoute Connecté (${data.modelCount} modèles)`;
-    } else {
-      omniStatusBadge.className = 'status-badge offline';
-      omniStatusText.textContent = 'OmniRoute Hors-ligne (lancez or-start)';
-    }
-
-    if (data.hasKeychainKey) {
-      maskedKeyLabel.textContent = `${data.maskedKey} (Trousseau macOS)`;
-    } else {
-      maskedKeyLabel.textContent = 'Clé manuelle requise';
-      apiConfigDrawer.classList.remove('hidden');
+      if (data.hasKeychainKey) {
+        maskedKeyLabel.textContent = `${data.maskedKey} (Trousseau macOS)`;
+      }
+      return;
     }
   } catch {
-    omniStatusBadge.className = 'status-badge offline';
-    omniStatusText.textContent = 'Serveur local indisponible';
+    // Ignorer si l'API serveur ne répond pas
   }
+
+  // Fallback : si hébergé sur Vercel, le navigateur peut interroger directement l'OmniRoute local du Mac (http://127.0.0.1:20128)
+  try {
+    const userKey = document.getElementById('customApiKey').value.trim();
+    const r = await fetch(`${LOCAL_OMNIROUTE_URL}/models`, {
+      headers: userKey ? { Authorization: `Bearer ${userKey}` } : {}
+    });
+    if (r.ok || r.status === 401) {
+      omniStatusBadge.className = 'status-badge online';
+      omniStatusText.textContent = 'OmniRoute Local Détecté (Mode Cloud/Direct)';
+      if (!userKey) {
+        maskedKeyLabel.textContent = 'Entrer votre clé OmniRoute';
+        apiConfigDrawer.classList.remove('hidden');
+      } else {
+        maskedKeyLabel.textContent = `${userKey.slice(0, 6)}•••• (Navigateur)`;
+      }
+      return;
+    }
+  } catch {
+    // OmniRoute local non joignable
+  }
+
+  omniStatusBadge.className = 'status-badge offline';
+  omniStatusText.textContent = 'OmniRoute Hors-ligne (lancez or-start)';
+  apiConfigDrawer.classList.remove('hidden');
 }
 
 toggleKeyBtn.addEventListener('click', () => {
@@ -288,13 +317,18 @@ analyzeBtn.addEventListener('click', async () => {
       body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
-    clearTimeout(stepTimer);
+    let data = await res.json();
 
+    // Si exécuté depuis Vercel Cloud (où 127.0.0.1 n'est pas le Mac de l'utilisateur), basculer automatiquement en appel direct navigateur -> OmniRoute Local
     if (!res.ok || data.error) {
-      throw new Error(data.error || 'Erreur inconnue');
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        data = await runDirectBrowserOmniRouteAnalysis(payload);
+      } else {
+        throw new Error(data.error || 'Erreur inconnue');
+      }
     }
 
+    clearTimeout(stepTimer);
     renderAnalysisResult(data);
   } catch (err) {
     clearTimeout(stepTimer);
@@ -427,6 +461,85 @@ document.getElementById('copyTicketBtn').addEventListener('click', () => {
   ].join('\n');
 
   navigator.clipboard.writeText(summary);
+// Mode Direct Navigateur -> OmniRoute Local (lorsque le site est ouvert depuis l'URL Vercel)
+async function runDirectBrowserOmniRouteAnalysis(payload) {
+  const apiKey = (payload.customApiKey || '').trim();
+  if (!apiKey) {
+    apiConfigDrawer.classList.remove('hidden');
+    throw new Error(
+      "Sur la version en ligne Vercel, collez votre clé OmniRoute dans le champ '🔑 Clé API' en haut (elle sera sauvegardée dans votre navigateur)."
+    );
+  }
+
+  const model = payload.preferredModel || 'gemini/gemini-3-flash-preview';
+  const parseJson = txt => {
+    const m = txt.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const clean = m ? m[1].trim() : txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1);
+    return JSON.parse(clean);
+  };
+
+  // Étape 1 : OCR
+  const ocrRes = await fetch(`${LOCAL_OMNIROUTE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      temperature: 0.0,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Lis uniquement les faits visibles sur cette capture de marché (Actif=${payload.symbol || 'Auto'}, TF=${payload.timeframe || 'Auto'}). N'invente aucun prix. Réponds uniquement en JSON: {"image_quality":{"is_trading_chart":true,"price_axis_readable":true,"visibility_score_0_to_100":90},"extracted_facts":{"symbol_on_chart":"...","timeframe_on_chart":"...","current_price_on_chart":"..."}}`
+            },
+            { type: 'image_url', image_url: { url: payload.imageBase64 } }
+          ]
+        }
+      ]
+    })
+  });
+  const ocrJson = await ocrRes.json();
+  if (!ocrRes.ok || ocrJson.error) {
+    throw new Error(ocrJson.error?.message || 'Erreur OmniRoute Local');
+  }
+  const ocrFacts = parseJson(ocrJson.choices[0].message.content);
+
+  // Étape 2 : Plan de trade
+  const planRes = await fetch(`${LOCAL_OMNIROUTE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Tu es un gestionnaire de risque Zéro Hallucination. Faits extraits: ${JSON.stringify(ocrFacts)}. Contexte: Capital=${payload.capital}, Risque=${payload.riskPercent}%, Notes=${payload.notes}. Si incertain ou R:R < 1.8, réponds WAIT ou NO_TRADE. Réponds uniquement en JSON avec la structure: {"verdict":{"action":"BUY|SELL|WAIT|NO_TRADE","order_type":"MARKET|BUY_LIMIT|SELL_LIMIT|AUCUN","confidence_score":80,"hallucination_guard_status":"SAFE_VERIFIED","headline_reason":"..."},"essential_order_inputs":{"asset":"...","timeframe":"...","current_price":"...","entry_price":"...","stop_loss":"...","take_profit_1":"...","take_profit_2":"...","risk_reward_ratio":"...","recommended_risk_pct":"..."},"market_structure_facts":{"trend_bias":"...","key_support_zone":"...","key_resistance_zone":"...","observed_confluences":["..."]},"strict_checklist_before_clicking":["..."],"invalidation_warning":"...","audit_trail":["VÉRIFIÉ : Analyse directe OmniRoute effectuée sans hallucination."]}`
+            },
+            { type: 'image_url', image_url: { url: payload.imageBase64 } }
+          ]
+        }
+      ]
+    })
+  });
+  const planJson = await planRes.json();
+  if (!planRes.ok || planJson.error) {
+    throw new Error(planJson.error?.message || 'Erreur étape 2 OmniRoute');
+  }
+  const plan = parseJson(planJson.choices[0].message.content);
+
+  return {
+    success: true,
+    modelsUsed: { ocrModel: ocrJson.model || model, decisionModel: planJson.model || model },
+    ocrFacts,
+    plan
+  };
+}
+
   const btn = document.getElementById('copyTicketBtn');
   btn.textContent = '✅ Ticket copié !';
   setTimeout(() => (btn.textContent = '📋 Copier le ticket'), 1500);

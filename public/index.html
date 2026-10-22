@@ -22,7 +22,7 @@
         <span id="omniStatusText">Connexion à OmniRoute...</span>
       </div>
       <button id="toggleKeyBtn" class="btn-ghost" title="Configurer ou vérifier la clé OmniRoute">
-        🔑 Clé API : <span id="maskedKeyLabel">Auto (Keychain)</span>
+        ⚙️ Clé API &amp; mode : <span id="maskedKeyLabel">Auto (Keychain)</span>
       </button>
     </div>
   </header>
@@ -31,24 +31,28 @@
   <section id="apiConfigDrawer" class="config-drawer hidden">
     <div class="config-grid">
       <div class="field">
-        <label for="customApiKey">Clé API OmniRoute (Optionnel si déjà dans votre Trousseau macOS)</label>
-        <input type="password" id="customApiKey" placeholder="Laissez vide pour utiliser automatiquement votre clé 'omniroute-ia'" />
+        <label for="customApiKey">Clé API (Optionnelle) — Gemini, OpenRouter ou OmniRoute</label>
+        <input type="password" id="customApiKey" autocomplete="off" placeholder="AIza…, AQ…, sk-or-… (ou vide si configurée côté serveur)" />
+        <small style="color: #94a3b8; font-size: 11px; display: block; margin-top: 4px;">Obtenez une clé gratuite sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">Google AI Studio</a> ou <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">OpenRouter</a></small>
       </div>
       <div class="field">
-        <label for="preferredModel">Combo / Modèle Vision Principal</label>
-        <select id="preferredModel">
-          <option value="gemini/gemini-3-flash-preview" selected>gemini/gemini-3-flash-preview (Recommandé — Ultra-Rapide & Vision HD)</option>
-          <option value="gemini/gemini-2.5-flash">gemini/gemini-2.5-flash (Vision Haute Précision)</option>
-          <option value="florian/analyse">florian/analyse (Combo Analyse)</option>
-          <option value="gratuit/analyse">gratuit/analyse (Combo Gratuit)</option>
-          <option value="ia">ia (Combo Auto)</option>
+        <label for="analysisMode">Mode d'analyse</label>
+        <select id="analysisMode">
+          <option value="rapide">⚡ Rapide — 1 modèle (~4 s)</option>
+          <option value="precis" selected>🎯 Précis — 2 modèles en parallèle + consensus (~6 s, recommandé)</option>
+          <option value="ultra">🛡️ Ultra — Gemini 4 Argon double passe + consensus (~25 s)</option>
         </select>
       </div>
-      <div class="field checkbox-field">
-        <label class="toggle-label">
-          <input type="checkbox" id="doubleVerification" />
-          <span>Activer la <strong>Double Passe Anti-Hallucination</strong> (Mode Sûr 2x plus lent — Recommandé uniquement si doute extrême)</span>
-        </label>
+      <div class="field">
+        <label for="preferredModel">Modèle principal (OmniRoute uniquement)</label>
+        <select id="preferredModel">
+          <option value="auto" selected>Auto — meilleur modèle du mode choisi</option>
+          <option value="gemini/gemini-3.8-flash@low">gemini-3.8-flash (le plus rapide)</option>
+          <option value="agy/gemini-4-argon-low">gemini-4-argon (le plus puissant)</option>
+          <option value="gemini/gemini-3-flash-preview@low">gemini-3-flash-preview</option>
+          <option value="auto/best-vision">auto/best-vision (combo OmniRoute)</option>
+          <option value="florian/analyse">florian/analyse (combo)</option>
+        </select>
       </div>
     </div>
   </section>
@@ -143,12 +147,12 @@
         <div class="shield-icon">🛡️</div>
         <h3>Prêt à analyser votre graphique sans hallucination</h3>
         <p>
-          Déposez une capture d'écran à gauche. Le système procède en <strong>2 étapes strictes</strong> via votre clé OmniRoute :
+          Déposez une capture d'écran à gauche. Le système procède en <strong>3 étapes strictes</strong> :
         </p>
         <ol class="steps-list">
-          <li><strong>Étape 1 (OCR Factuel) :</strong> Lecture stricte des prix sur l'axe vertical, du symbole et des bougies visibles (température 0.0).</li>
-          <li><strong>Étape 2 (Filtre Risque & Niveaux) :</strong> Génération uniquement des paramètres d'ordre essentiels (Entrée, Stop Loss, TP1, TP2). Si le setup est incertain, le système affiche <strong>NE PAS TRADER</strong>.</li>
-          <li><strong>Étape 3 (Contrôle Mathématique Serveur) :</strong> Vérification automatique de la cohérence <code>SL &lt; Entrée &lt; TP</code> avant affichage.</li>
+          <li><strong>Étape 1 (Lecture factuelle) :</strong> Lecture stricte de l'axe des prix, du symbole et des bougies visibles (température 0).</li>
+          <li><strong>Étape 2 (Consensus) :</strong> En mode Précis/Ultra, un 2e modèle indépendant relit le graphique en parallèle ; tout désaccord sur le prix ou la direction bloque le trade.</li>
+          <li><strong>Étape 3 (Contrôle mathématique serveur) :</strong> Ordre <code>SL &lt; Entrée &lt; TP</code>, niveaux dans la plage visible, R:R recalculé (min 1:1.8), type d'ordre corrigé. Si le setup est incertain : <strong>NE PAS TRADER</strong>.</li>
         </ol>
       </div>
 

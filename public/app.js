@@ -20,51 +20,83 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 
 const emptyState = document.getElementById('emptyState');
 const loadingState = document.getElementById('loadingState');
-const loadingStepTitle = document.getElementById('loadingStepTitle');
 const errorState = document.getElementById('errorState');
 const errorMessage = document.getElementById('errorMessage');
 const resultContainer = document.getElementById('resultContainer');
 
-// 1. Vérifier la connexion OmniRoute + Clé Keychain au démarrage (Supporte Backend Local OU Appel Direct Navigateur depuis Vercel)
-const LOCAL_OMNIROUTE_URL = 'http://127.0.0.1:20128/v1';
+const customApiKeyInput = document.getElementById('customApiKey');
+const analysisModeSelect = document.getElementById('analysisMode');
+const preferredModelSelect = document.getElementById('preferredModel');
 
-// Sauvegarde/restauration de la clé dans le navigateur (utile sur Vercel)
-const savedKey = localStorage.getItem('omniroute_api_key') || '';
-if (savedKey) {
-  document.getElementById('customApiKey').value = savedKey;
-}
-document.getElementById('customApiKey').addEventListener('input', e => {
+// 1. Vérifier la connexion (Backend local OU appel direct navigateur depuis Vercel)
+const LOCAL_OMNIROUTE_URL = 'http://127.0.0.1:20128/v1';
+const IS_LOCAL = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+// Sauvegarde/restauration des préférences dans le navigateur (utile sur Vercel)
+customApiKeyInput.value = localStorage.getItem('omniroute_api_key') || '';
+customApiKeyInput.addEventListener('input', e => {
   localStorage.setItem('omniroute_api_key', e.target.value.trim());
 });
+const savedMode = localStorage.getItem('analysis_mode');
+if (savedMode && [...analysisModeSelect.options].some(o => o.value === savedMode)) analysisModeSelect.value = savedMode;
+analysisModeSelect.addEventListener('change', () => localStorage.setItem('analysis_mode', analysisModeSelect.value));
+
+// Lecture JSON tolérante (une page d'erreur HTML ne doit pas faire planter l'interface)
+async function readJsonResponse(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: `Réponse inattendue du serveur (HTTP ${res.status}).` };
+  }
+}
 
 async function checkOmniRouteStatus() {
   try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
+    const res = await fetch('/api/status', { cache: 'no-store' });
+    const data = await readJsonResponse(res);
 
-    if (data.omnirouteOnline) {
+    if (res.ok && data.activeProvider === 'omniroute') {
       omniStatusBadge.className = 'status-badge online';
-      omniStatusText.textContent = `OmniRoute Connecté (${data.modelCount} modèles)`;
-      if (data.hasKeychainKey) {
-        maskedKeyLabel.textContent = `${data.maskedKey} (Trousseau macOS)`;
-      }
+      omniStatusText.textContent = `OmniRoute connecté (${data.modelCount} modèles)`;
+      maskedKeyLabel.textContent = `${data.maskedKey} (Trousseau)`;
+      return;
+    }
+    if (res.ok && data.activeProvider === 'gemini') {
+      omniStatusBadge.className = 'status-badge online';
+      omniStatusText.textContent = 'Gemini API connectée (clé directe)';
+      maskedKeyLabel.textContent = `${data.maskedGeminiKey}`;
       return;
     }
   } catch {
     // Ignorer si l'API serveur ne répond pas
   }
 
-  // Fallback : si hébergé sur Vercel, le navigateur peut interroger directement l'OmniRoute local du Mac (http://127.0.0.1:20128)
+  const userKey = customApiKeyInput.value.trim();
+  if (userKey.startsWith('sk-or-')) {
+    omniStatusBadge.className = 'status-badge online';
+    omniStatusText.textContent = 'Clé OpenRouter active';
+    maskedKeyLabel.textContent = `${userKey.slice(0, 10)}•••• (Navigateur)`;
+    return;
+  }
+  if (/^(AIza|AQ\.)/.test(userKey)) {
+    omniStatusBadge.className = 'status-badge online';
+    omniStatusText.textContent = 'Clé Gemini active';
+    maskedKeyLabel.textContent = `${userKey.slice(0, 6)}•••• (Navigateur)`;
+    return;
+  }
+
+  // Fallback : si hébergé sur Vercel, le navigateur peut interroger directement l'OmniRoute local du Mac
   try {
-    const userKey = document.getElementById('customApiKey').value.trim();
     const r = await fetch(`${LOCAL_OMNIROUTE_URL}/models`, {
-      headers: userKey ? { Authorization: `Bearer ${userKey}` } : {}
+      headers: userKey ? { Authorization: `Bearer ${userKey}` } : {},
+      signal: AbortSignal.timeout(2000)
     });
     if (r.ok || r.status === 401) {
       omniStatusBadge.className = 'status-badge online';
-      omniStatusText.textContent = 'OmniRoute Local Détecté (Mode Cloud/Direct)';
+      omniStatusText.textContent = 'OmniRoute local détecté (mode direct)';
       if (!userKey) {
-        maskedKeyLabel.textContent = 'Entrer votre clé OmniRoute';
+        maskedKeyLabel.textContent = 'Entrer votre clé';
         apiConfigDrawer.classList.remove('hidden');
       } else {
         maskedKeyLabel.textContent = `${userKey.slice(0, 6)}•••• (Navigateur)`;
@@ -76,7 +108,8 @@ async function checkOmniRouteStatus() {
   }
 
   omniStatusBadge.className = 'status-badge offline';
-  omniStatusText.textContent = 'OmniRoute Hors-ligne (lancez or-start)';
+  omniStatusText.textContent = 'Aucune IA disponible (npm run setup-key ou OmniRoute)';
+  maskedKeyLabel.textContent = 'Non configurée';
   apiConfigDrawer.classList.remove('hidden');
 }
 
@@ -93,13 +126,38 @@ function setChartImage(dataUrl) {
   analyzeBtn.disabled = false;
 }
 
+// Réduit uniquement les images très lourdes (limite Vercel 4,5 Mo + vitesse d'envoi),
+// en gardant une résolution suffisante pour lire l'axe des prix.
+const MAX_SIDE = 2400;
+const MAX_DATAURL_CHARS = 3_500_000;
+function optimizeImage(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+      if (scale === 1 && dataUrl.length <= MAX_DATAURL_CHARS) return resolve(dataUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      let out = canvas.toDataURL('image/png');
+      if (out.length > MAX_DATAURL_CHARS) out = canvas.toDataURL('image/jpeg', 0.92);
+      resolve(out);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 function handleFile(file) {
   if (!file || !file.type.startsWith('image/')) {
     alert('Veuillez sélectionner un fichier image (PNG, JPG, WebP).');
     return;
   }
   const reader = new FileReader();
-  reader.onload = e => setChartImage(e.target.result);
+  reader.onload = async e => setChartImage(await optimizeImage(e.target.result));
   reader.readAsDataURL(file);
 }
 
@@ -117,8 +175,16 @@ dropZone.addEventListener('click', () => {
   if (!currentImageBase64) fileInput.click();
 });
 
+dropZone.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && !currentImageBase64) {
+    e.preventDefault();
+    fileInput.click();
+  }
+});
+
 fileInput.addEventListener('change', e => {
   if (e.target.files?.[0]) handleFile(e.target.files[0]);
+  e.target.value = ''; // permet de re-sélectionner le même fichier
 });
 
 dropZone.addEventListener('dragover', e => {
@@ -284,6 +350,8 @@ demoChartBtn.addEventListener('click', e => {
 });
 
 // 4. Lancer l'analyse Anti-Hallucination
+const MODE_DURATION_MS = { rapide: 4500, precis: 7000, ultra: 26000 };
+
 analyzeBtn.addEventListener('click', async () => {
   if (!currentImageBase64) return;
 
@@ -293,60 +361,67 @@ analyzeBtn.addEventListener('click', async () => {
   loadingState.classList.remove('hidden');
   analyzeBtn.disabled = true;
 
-  // Animation de la barre de progression réelle
+  // Barre de progression calée sur la durée typique du mode choisi
   const progressBar = document.getElementById('analysisProgressBar');
   const progressPercent = document.getElementById('progressPercent');
   const loadingPhase = document.getElementById('loadingPhase');
   const loadingStepTitle = document.getElementById('loadingStepTitle');
+  const mode = analysisModeSelect.value;
+  const expected = MODE_DURATION_MS[mode] || 7000;
+  const startedAt = Date.now();
 
-  let progress = 15;
-  progressBar.style.width = '15%';
-  progressPercent.textContent = '15%';
-  loadingStepTitle.textContent = "🔍 Envoi de la capture & OCR en cours...";
-  loadingPhase.textContent = "Modèle Vision Ultra-Fast (Température 0.0)";
+  const setProgress = p => {
+    progressBar.style.width = `${p}%`;
+    progressPercent.textContent = `${p}%`;
+  };
+  setProgress(5);
+  loadingStepTitle.textContent = '🔍 Envoi de la capture & lecture de l\'axe des prix...';
+  loadingPhase.textContent = mode === 'rapide' ? 'Mode Rapide (1 modèle)' : mode === 'ultra' ? 'Mode Ultra (Gemini 4 Argon, double passe)' : 'Mode Précis (2 modèles en parallèle)';
 
-  // Progression rapide et fluide adaptée au nouveau mode éclair (~1.5s - 2s)
   const progressInterval = setInterval(() => {
-    if (progress < 90) {
-      progress += progress < 50 ? 25 : 15;
-      if (progress > 90) progress = 90;
-      progressBar.style.width = `${progress}%`;
-      progressPercent.textContent = `${progress}%`;
-
-      if (progress >= 40 && progress < 80) {
-        loadingStepTitle.textContent = "🎯 Calcul des niveaux & Ratio R:R...";
-        loadingPhase.textContent = "Extraction stricte de l'axe des prix";
-      } else if (progress >= 80) {
-        loadingStepTitle.textContent = "🛡️ Validation mathématique serveur...";
-        loadingPhase.textContent = "Vérification SL < Entrée < TP";
-      }
+    const ratio = (Date.now() - startedAt) / expected;
+    // Courbe asymptotique : avance vite puis ralentit sans jamais dépasser 95 %
+    const p = Math.min(95, Math.round(5 + 90 * (1 - Math.exp(-2.2 * ratio))));
+    setProgress(p);
+    if (p >= 35 && p < 70) {
+      loadingStepTitle.textContent = mode === 'rapide' ? '🎯 Calcul des niveaux & ratio R:R...' : '🤝 Lecture croisée par un 2e modèle...';
+      loadingPhase.textContent = 'Extraction stricte de l\'axe des prix';
+    } else if (p >= 70) {
+      loadingStepTitle.textContent = '🛡️ Validation mathématique serveur...';
+      loadingPhase.textContent = 'Vérification SL / Entrée / TP, R:R et plage visible';
     }
-  }, 300);
+  }, 200);
 
   try {
     const payload = {
       imageBase64: currentImageBase64,
-      customApiKey: document.getElementById('customApiKey').value,
-      preferredModel: document.getElementById('preferredModel').value,
-      doubleVerification: document.getElementById('doubleVerification').checked,
-      symbol: document.getElementById('symbolInput').value,
+      customApiKey: customApiKeyInput.value.trim(),
+      preferredModel: preferredModelSelect.value,
+      analysisMode: mode,
+      symbol: document.getElementById('symbolInput').value.trim(),
       timeframe: document.getElementById('timeframeInput').value,
       capital: document.getElementById('capitalInput').value,
       riskPercent: document.getElementById('riskInput').value,
-      notes: document.getElementById('notesInput').value
+      notes: document.getElementById('notesInput').value.trim()
     };
 
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    let data;
+    let res = null;
+    try {
+      res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      data = await readJsonResponse(res);
+    } catch (networkErr) {
+      data = { error: `Serveur injoignable : ${networkErr.message}` };
+    }
 
-    let data = await res.json();
-
-    // Si exécuté depuis Vercel Cloud (où 127.0.0.1 n'est pas le Mac de l'utilisateur), basculer automatiquement en appel direct navigateur -> OmniRoute Local
-    if (!res.ok || data.error) {
-      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (!res || !res.ok || data.error) {
+      // Depuis Vercel sans clé serveur : bascule en appel direct navigateur -> OmniRoute local du Mac
+      const noServerKey = !res || res.status === 401 || res.status === 404;
+      if (!IS_LOCAL && noServerKey && !/^(AIza|AQ\.)/.test(payload.customApiKey)) {
         data = await runDirectBrowserOmniRouteAnalysis(payload);
       } else {
         throw new Error(data.error || 'Erreur inconnue');
@@ -354,14 +429,13 @@ analyzeBtn.addEventListener('click', async () => {
     }
 
     clearInterval(progressInterval);
-    progressBar.style.width = '100%';
-    progressPercent.textContent = '100%';
-    loadingStepTitle.textContent = "✅ Analyse terminée avec succès !";
-    loadingPhase.textContent = "Zéro hallucination garantie";
+    setProgress(100);
+    loadingStepTitle.textContent = '✅ Analyse terminée !';
+    loadingPhase.textContent = data.elapsedMs ? `${(data.elapsedMs / 1000).toFixed(1)} s` : 'Terminé';
 
     setTimeout(() => {
       renderAnalysisResult(data);
-    }, 300);
+    }, 250);
   } catch (err) {
     clearInterval(progressInterval);
     loadingState.classList.add('hidden');
@@ -373,6 +447,15 @@ analyzeBtn.addEventListener('click', async () => {
 });
 
 // 5. Affichage clair des résultats essentiels
+const ORDER_TYPE_LABELS = {
+  MARKET: 'Exécution au marché',
+  BUY_LIMIT: 'Buy Limit',
+  SELL_LIMIT: 'Sell Limit',
+  BUY_STOP: 'Buy Stop',
+  SELL_STOP: 'Sell Stop',
+  AUCUN: 'Aucun'
+};
+
 function renderAnalysisResult(data) {
   loadingState.classList.add('hidden');
   resultContainer.classList.remove('hidden');
@@ -382,7 +465,7 @@ function renderAnalysisResult(data) {
   const inputs = plan.essential_order_inputs || {};
   const structure = plan.market_structure_facts || {};
 
-  const action = (verdict.action || 'WAIT').toUpperCase();
+  const action = String(verdict.action || 'WAIT').toUpperCase();
   const verdictCard = document.getElementById('verdictCard');
   verdictCard.className = 'verdict-card';
 
@@ -414,15 +497,15 @@ function renderAnalysisResult(data) {
   document.getElementById('outTP1').textContent = inputs.take_profit_1 || '--';
   document.getElementById('outTP2').textContent = inputs.take_profit_2 || '--';
 
-  document.getElementById('outRR').textContent = inputs.calculated_rr_tp1 || inputs.risk_reward_ratio || '--';
+  document.getElementById('outRR').textContent = inputs.risk_reward_ratio || inputs.calculated_rr_tp1 || '--';
   document.getElementById('outRiskPct').textContent = inputs.recommended_risk_pct || '--';
 
-  // Calcul perte max en devise
+  // Calcul perte max en devise (uniquement si un ordre est réellement recommandé)
   const capital = parseFloat(document.getElementById('capitalInput').value);
-  const riskPct = parseFloat(document.getElementById('riskInput').value);
-  const hasOrder = action === 'BUY' || action === 'SELL' || (verdict.order_type && verdict.order_type !== 'AUCUN');
-  let maxLossVal = 0;
-  if (!isNaN(capital) && !isNaN(riskPct) && hasOrder && action !== 'NO_TRADE') {
+  const riskPct = parseFloat(String(inputs.recommended_risk_pct || '').replace(',', '.')) || parseFloat(document.getElementById('riskInput').value);
+  const hasOrder = action === 'BUY' || action === 'SELL';
+  let maxLossVal = '0.00';
+  if (!isNaN(capital) && !isNaN(riskPct) && hasOrder) {
     maxLossVal = ((capital * riskPct) / 100).toFixed(2);
     document.getElementById('outMaxLossMoney').textContent = `${maxLossVal} $ / € (pour ${riskPct}%)`;
   } else {
@@ -435,24 +518,30 @@ function renderAnalysisResult(data) {
   const mt5VolumeElem = document.getElementById('outMt5Volume');
   const mt5InstructionElem = document.getElementById('outMt5Instruction');
 
-  const oType = (verdict.order_type || '').toUpperCase();
-  if (action === 'WAIT' || action === 'NO_TRADE') {
+  const oType = String(verdict.order_type || '').toUpperCase();
+  const slDist = plan.computed?.sl_distance;
+  const volumeText = `Risque : ${riskPct}% (~${maxLossVal} $ / € max)${slDist ? ` · distance SL ${slDist}` : ''}`;
+
+  if (!hasOrder) {
     mt5OrderTypeElem.textContent = 'AUCUN ORDRE (ATTENDRE)';
     mt5ActionElem.textContent = 'NE RIEN FAIRE SUR MT5';
     mt5VolumeElem.textContent = 'Lot = 0 (Pas de risque)';
-    mt5InstructionElem.textContent = `🛑 SÉCURITÉ ANTI-HALLUCINATION : Le système vous demande de patienter (${verdict.headline_reason || 'Signal non optimal'}). Ne placez aucun ordre tant que le prix n atteint pas les zones clés.`;
-  } else if (oType.includes('LIMIT') || oType.includes('STOP') || oType.includes('PENDING')) {
-    const isBuy = action === 'BUY' || oType.includes('BUY');
-    mt5OrderTypeElem.textContent = isBuy ? 'Buy Limit (Ordre en attente)' : 'Sell Limit (Ordre en attente)';
-    mt5ActionElem.textContent = isBuy ? 'ACHAT SUR REPLI' : 'VENTE SUR REBOND';
-    mt5VolumeElem.textContent = `Risque : ${riskPct}% (~${maxLossVal} $ / € max)`;
-    mt5InstructionElem.textContent = `📋 DANS MT5 : Sélectionnez "Ordre en attente" -> Type: "${isBuy ? 'Buy Limit' : 'Sell Limit'}" -> Prix: ${inputs.entry_price} -> SL: ${inputs.stop_loss} -> TP: ${inputs.take_profit_1}.`;
+    mt5InstructionElem.textContent = `🛑 SÉCURITÉ ANTI-HALLUCINATION : patientez (${verdict.headline_reason || 'signal non optimal'}). Ne placez aucun ordre tant que les conditions ne sont pas réunies.`;
+  } else if (/LIMIT|STOP/.test(oType)) {
+    const isBuy = action === 'BUY';
+    const label = ORDER_TYPE_LABELS[oType] || (isBuy ? 'Buy Limit' : 'Sell Limit');
+    mt5OrderTypeElem.textContent = `${label} (Ordre en attente)`;
+    mt5ActionElem.textContent = oType.includes('STOP')
+      ? (isBuy ? 'ACHAT SUR CASSURE' : 'VENTE SUR CASSURE')
+      : (isBuy ? 'ACHAT SUR REPLI' : 'VENTE SUR REBOND');
+    mt5VolumeElem.textContent = volumeText;
+    mt5InstructionElem.textContent = `📋 DANS MT5 : Nouvel ordre → Type : "Ordre en attente" → "${label}" → Prix : ${inputs.entry_price} → SL : ${inputs.stop_loss} → TP : ${inputs.take_profit_1}.`;
   } else {
     const isBuy = action === 'BUY';
-    mt5OrderTypeElem.textContent = isBuy ? 'Execution Instantanée (Buy Market)' : 'Execution Instantanée (Sell Market)';
+    mt5OrderTypeElem.textContent = isBuy ? 'Exécution instantanée (Buy Market)' : 'Exécution instantanée (Sell Market)';
     mt5ActionElem.textContent = isBuy ? 'ACHETER DIRECT' : 'VENDRE DIRECT';
-    mt5VolumeElem.textContent = `Risque : ${riskPct}% (~${maxLossVal} $ / € max)`;
-    mt5InstructionElem.textContent = `📋 DANS MT5 : Cliquez sur "${isBuy ? 'Buy by Market' : 'Sell by Market'}" immédiatement -> Entrez le SL à ${inputs.stop_loss} et le TP à ${inputs.take_profit_1}.`;
+    mt5VolumeElem.textContent = volumeText;
+    mt5InstructionElem.textContent = `📋 DANS MT5 : Cliquez sur "${isBuy ? 'Buy by Market' : 'Sell by Market'}" → SL : ${inputs.stop_loss} → TP : ${inputs.take_profit_1}.`;
   }
 
   // Invalidation & Confluences
@@ -460,29 +549,18 @@ function renderAnalysisResult(data) {
   document.getElementById('outSupport').textContent = structure.key_support_zone || '--';
   document.getElementById('outResistance').textContent = structure.key_resistance_zone || '--';
 
-  const confList = document.getElementById('outConfluences');
-  confList.innerHTML = '';
-  (structure.observed_confluences || []).forEach(item => {
-    const li = document.createElement('li');
-    li.textContent = item;
-    confList.appendChild(li);
-  });
-
-  const checkList = document.getElementById('outChecklist');
-  checkList.innerHTML = '';
-  (plan.strict_checklist_before_clicking || []).forEach(item => {
-    const li = document.createElement('li');
-    li.textContent = item;
-    checkList.appendChild(li);
-  });
+  fillList('outConfluences', structure.observed_confluences);
+  fillList('outChecklist', plan.strict_checklist_before_clicking);
 
   // Audit
+  const m = data.modelsUsed || {};
+  const timing = data.elapsedMs ? ` · ${(data.elapsedMs / 1000).toFixed(1)} s` : '';
   document.getElementById('outModelsUsed').textContent =
-    `OCR: ${data.modelsUsed?.ocrModel || 'OmniRoute'} → Décision: ${data.modelsUsed?.decisionModel || 'OmniRoute'}`;
+    `${data.provider ? data.provider.toUpperCase() + ' · ' : ''}Lecture : ${m.ocrModel || '?'} → Décision : ${m.decisionModel || '?'}${m.verifierModel ? ` · Vérif : ${m.verifierModel}` : ''}${timing}`;
 
   const auditList = document.getElementById('outAuditFlags');
   auditList.innerHTML = '';
-  (plan.audit_trail || ['VÉRIFIÉ : Lecture en 2 passes terminée sans anomalie.']).forEach(flag => {
+  (plan.audit_trail?.length ? plan.audit_trail : ['VÉRIFIÉ : analyse terminée sans anomalie.']).forEach(flag => {
     const li = document.createElement('li');
     li.textContent = `🛡️ ${flag}`;
     auditList.appendChild(li);
@@ -491,24 +569,65 @@ function renderAnalysisResult(data) {
   document.getElementById('outRawOcr').textContent = JSON.stringify(data.ocrFacts, null, 2);
 }
 
+function fillList(id, items) {
+  const list = document.getElementById(id);
+  list.innerHTML = '';
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const li = document.createElement('li');
+    li.textContent = typeof item === 'string' ? item : JSON.stringify(item);
+    list.appendChild(li);
+  });
+}
+
+// Extrait le prix principal ("2,657.20" → "2657.20", "1,0845" → "1.0845") pour coller dans MT5/TradingView
+function extractPriceForCopy(text) {
+  const m = String(text).match(/-?\d[\d\s.,']*/);
+  if (!m) return null;
+  let t = m[0].trim().replace(/[\s']/g, '').replace(/[.,]+$/, '');
+  const lastDot = t.lastIndexOf('.');
+  const lastComma = t.lastIndexOf(',');
+  if (lastDot !== -1 && lastComma !== -1) {
+    const dec = lastDot > lastComma ? '.' : ',';
+    t = t.split(dec === '.' ? ',' : '.').join('').replace(dec, '.');
+  } else if (lastComma !== -1) {
+    const parts = t.split(',');
+    t = parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3 && parts[0] !== '0') ? parts.join('') : parts.join('.');
+  }
+  return t;
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Repli pour les contextes non sécurisés (http non-localhost)
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }
+}
+
 // Boutons de copie rapide des niveaux
 document.querySelectorAll('.copy-val-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     const targetId = btn.getAttribute('data-target');
     const rawText = document.getElementById(targetId)?.textContent || '';
-    // Extrait le nombre principal s'il y en a un pour coller directement dans MT5/TradingView
-    const numMatch = rawText.replace(',', '.').match(/\d+(\.\d+)?/);
-    const toCopy = numMatch ? numMatch[0] : rawText;
-    navigator.clipboard.writeText(toCopy);
+    const toCopy = extractPriceForCopy(rawText) || rawText;
+    await copyText(toCopy);
     const prev = btn.textContent;
     btn.textContent = '✓ Copié';
     setTimeout(() => (btn.textContent = prev), 1200);
   });
 });
 
-document.getElementById('copyTicketBtn').addEventListener('click', () => {
+document.getElementById('copyTicketBtn').addEventListener('click', async () => {
   const summary = [
-    `=== TICKET TRADING OMNIROUTE ===`,
+    `=== TICKET TRADING ===`,
     `Décision : ${document.getElementById('verdictAction').textContent} (${document.getElementById('verdictOrderType').textContent})`,
     `Actif : ${document.getElementById('outAsset').textContent} | TF : ${document.getElementById('outTimeframe').textContent}`,
     `Entrée : ${document.getElementById('outEntry').textContent}`,
@@ -519,89 +638,75 @@ document.getElementById('copyTicketBtn').addEventListener('click', () => {
     `Invalidation : ${document.getElementById('outInvalidation').textContent}`
   ].join('\n');
 
-  navigator.clipboard.writeText(summary);
-// Mode Direct Navigateur -> OmniRoute Local (lorsque le site est ouvert depuis l'URL Vercel)
+  await copyText(summary);
+  const btn = document.getElementById('copyTicketBtn');
+  btn.textContent = '✅ Ticket copié !';
+  setTimeout(() => (btn.textContent = '📋 Copier le ticket'), 1500);
+});
+
+// Mode Direct Navigateur -> OmniRoute Local (lorsque le site est ouvert depuis l'URL Vercel sans clé serveur)
+// Passe unique combinée ; le contrôle mathématique strict reste effectué côté serveur quand il est disponible.
 async function runDirectBrowserOmniRouteAnalysis(payload) {
   const apiKey = (payload.customApiKey || '').trim();
   if (!apiKey) {
     apiConfigDrawer.classList.remove('hidden');
     throw new Error(
-      "Sur la version en ligne Vercel, collez votre clé OmniRoute dans le champ '🔑 Clé API' en haut (elle sera sauvegardée dans votre navigateur)."
+      "Aucune clé côté serveur. Collez une clé Gemini (AIza…) ou OmniRoute dans « ⚙️ Clé API & mode » (sauvegardée dans votre navigateur), ou ajoutez GEMINI_API_KEY dans les variables Vercel."
     );
   }
 
-  const model = payload.preferredModel || 'gemini/gemini-3-flash-preview';
+  const model = payload.preferredModel && payload.preferredModel !== 'auto' ? payload.preferredModel : 'gemini/gemini-3.8-flash@low';
+  const [modelId, effort] = model.split('@');
   const parseJson = txt => {
     const m = txt.match(/```(?:json)?\s*([\s\S]*?)```/i);
     const clean = m ? m[1].trim() : txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1);
     return JSON.parse(clean);
   };
 
-  // Étape 1 : OCR
-  const ocrRes = await fetch(`${LOCAL_OMNIROUTE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0.0,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Lis uniquement les faits visibles sur cette capture de marché (Actif=${payload.symbol || 'Auto'}, TF=${payload.timeframe || 'Auto'}). N'invente aucun prix. Réponds uniquement en JSON: {"image_quality":{"is_trading_chart":true,"price_axis_readable":true,"visibility_score_0_to_100":90},"extracted_facts":{"symbol_on_chart":"...","timeframe_on_chart":"...","current_price_on_chart":"..."}}`
-            },
-            { type: 'image_url', image_url: { url: payload.imageBase64 } }
-          ]
-        }
-      ]
-    })
-  });
-  const ocrJson = await ocrRes.json();
-  if (!ocrRes.ok || ocrJson.error) {
-    throw new Error(ocrJson.error?.message || 'Erreur OmniRoute Local');
-  }
-  const ocrFacts = parseJson(ocrJson.choices[0].message.content);
+  const started = Date.now();
+  const body = {
+    model: modelId,
+    temperature: 0,
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `Tu es un gestionnaire de risque Zéro Hallucination. Lis UNIQUEMENT les faits visibles (axe des prix caractère par caractère), n'invente aucun prix, puis donne le plan. Contexte : Actif=${payload.symbol || 'non précisé'}, TF=${payload.timeframe || 'non précisé'}, Capital=${payload.capital}, Risque=${payload.riskPercent}%, Notes=${payload.notes || 'aucune'}. Si incertain ou R:R < 1.8 : WAIT ou NO_TRADE. BUY : SL < Entrée < TP1 < TP2. SELL : SL > Entrée > TP1 > TP2. Prix = nombres seuls. Réponds uniquement en JSON : {"ocr_facts":{"image_quality":{"is_trading_chart":true,"price_axis_readable":true,"visibility_score_0_to_100":90},"extracted_facts":{"symbol_on_chart":"...","timeframe_on_chart":"...","current_price_on_chart":"..."}},"plan":{"verdict":{"action":"BUY|SELL|WAIT|NO_TRADE","order_type":"MARKET|BUY_LIMIT|SELL_LIMIT|BUY_STOP|SELL_STOP|AUCUN","confidence_score":0,"hallucination_guard_status":"SAFE_VERIFIED","headline_reason":"..."},"essential_order_inputs":{"asset":"...","timeframe":"...","current_price":"...","entry_price":"...","stop_loss":"...","take_profit_1":"...","take_profit_2":"...","risk_reward_ratio":"...","recommended_risk_pct":"..."},"market_structure_facts":{"trend_bias":"...","key_support_zone":"...","key_resistance_zone":"...","observed_confluences":["..."]},"strict_checklist_before_clicking":["..."],"invalidation_warning":"..."}}`
+          },
+          { type: 'image_url', image_url: { url: payload.imageBase64 } }
+        ]
+      }
+    ]
+  };
+  if (effort) body.reasoning_effort = effort;
 
-  // Étape 2 : Plan de trade
-  const planRes = await fetch(`${LOCAL_OMNIROUTE_URL}/chat/completions`, {
+  const res = await fetch(`${LOCAL_OMNIROUTE_URL}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0.1,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Tu es un gestionnaire de risque Zéro Hallucination. Faits extraits: ${JSON.stringify(ocrFacts)}. Contexte: Capital=${payload.capital}, Risque=${payload.riskPercent}%, Notes=${payload.notes}. Si incertain ou R:R < 1.8, réponds WAIT ou NO_TRADE. Réponds uniquement en JSON avec la structure: {"verdict":{"action":"BUY|SELL|WAIT|NO_TRADE","order_type":"MARKET|BUY_LIMIT|SELL_LIMIT|AUCUN","confidence_score":80,"hallucination_guard_status":"SAFE_VERIFIED","headline_reason":"..."},"essential_order_inputs":{"asset":"...","timeframe":"...","current_price":"...","entry_price":"...","stop_loss":"...","take_profit_1":"...","take_profit_2":"...","risk_reward_ratio":"...","recommended_risk_pct":"..."},"market_structure_facts":{"trend_bias":"...","key_support_zone":"...","key_resistance_zone":"...","observed_confluences":["..."]},"strict_checklist_before_clicking":["..."],"invalidation_warning":"...","audit_trail":["VÉRIFIÉ : Analyse directe OmniRoute effectuée sans hallucination."]}`
-            },
-            { type: 'image_url', image_url: { url: payload.imageBase64 } }
-          ]
-        }
-      ]
-    })
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000)
   });
-  const planJson = await planRes.json();
-  if (!planRes.ok || planJson.error) {
-    throw new Error(planJson.error?.message || 'Erreur étape 2 OmniRoute');
+  const json = await readJsonResponse(res);
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || json.error || 'Erreur OmniRoute local');
   }
-  const plan = parseJson(planJson.choices[0].message.content);
+  const parsed = parseJson(json.choices?.[0]?.message?.content || '');
+  const plan = parsed.plan || {};
+  plan.audit_trail = [
+    'MODE DIRECT NAVIGATEUR : contrôle mathématique serveur indisponible — vérifiez vous-même SL / Entrée / TP avant d\'exécuter.'
+  ];
 
   return {
     success: true,
-    modelsUsed: { ocrModel: ocrJson.model || model, decisionModel: planJson.model || model },
-    ocrFacts,
+    provider: 'omniroute (direct)',
+    elapsedMs: Date.now() - started,
+    modelsUsed: { ocrModel: json.model || modelId, decisionModel: json.model || modelId },
+    ocrFacts: parsed.ocr_facts || {},
     plan
   };
 }
-
-  const btn = document.getElementById('copyTicketBtn');
-  btn.textContent = '✅ Ticket copié !';
-  setTimeout(() => (btn.textContent = '📋 Copier le ticket'), 1500);
-});
 
 checkOmniRouteStatus();

@@ -1,9 +1,14 @@
 {
   "name": "omniroute-trading-analyzer",
-  "version": "1.0.0",
-  "description": "Analyseur de graphiques Trading Ultra-Prudent connecté à OmniRoute (Zéro Hallucination)",
+  "version": "1.1.0",
+  "description": "Analyseur de graphiques Trading Ultra-Prudent (Gemini direct ou OmniRoute) — Zéro Hallucination",
   "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "setup-key": "node scripts/setup-key.js",
+    "test": "node --test tests/*.test.js"
   }
 }

@@ -2,7 +2,10 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#090d16" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>OmniRoute Trading Desk — Zéro Hallucination</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -351,6 +354,18 @@
             </div>
           </div>
 
+          <!-- GUIDE PÉDAGOGIQUE CLAIR SUR LE TYPE D'ORDRE (SELL STOP, BUY LIMIT, ETC.) -->
+          <div id="orderTypeBanner" class="order-type-banner">
+            <div class="order-type-badge-row">
+              <span id="orderTypeBadgePill" class="order-badge-pill">TYPE D'ORDRE</span>
+              <span id="orderDirectionTag" class="order-direction-tag">Explication claire</span>
+            </div>
+            <p id="orderTypeExplanation" class="order-type-explanation">
+              Sélectionnez ce type d'ordre dans la liste déroulante <strong>Type</strong> sur MetaTrader 5 (touche F9).
+            </p>
+            <div id="orderTypeSteps" class="order-type-steps"></div>
+          </div>
+
           <!-- Ajusteur de risque en temps réel pour recalculer le lot instantanément -->
           <div class="mt5-risk-adjuster">
             <div class="adjuster-item">
@@ -457,6 +472,16 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- BARRE D'ACTION RAPIDE FLOTTANTE POUR MOBILE -->
+  <div id="mobileQuickBar" class="mobile-quick-bar hidden">
+    <div class="mobile-quick-info">
+      <span id="mobileQuickAction" class="mobile-quick-action">ATTENDRE</span>
+      <span id="mobileQuickSymbol" class="mobile-quick-symbol">--</span>
+      <span id="mobileQuickLots" class="mobile-quick-lots">-- lots</span>
+    </div>
+    <button type="button" id="mobileQuickCopyBtn" class="mobile-quick-btn">📋 Copier MT5</button>
   </div>
 
   <script src="app.js"></script>

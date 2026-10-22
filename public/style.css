@@ -1190,3 +1190,412 @@ kbd {
   border-radius: 4px;
   letter-spacing: 0.3px;
 }
+
+/* ==========================================================================
+   BANNIÈRE PÉDAGOGIQUE CLAIRE SUR LES TYPES D'ORDRE (SELL STOP, BUY LIMIT, etc.)
+   ========================================================================== */
+.order-type-banner {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  transition: all 0.25s ease;
+}
+
+.order-type-badge-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.order-badge-pill {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.order-direction-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.order-type-explanation {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.order-type-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #6366f1;
+}
+
+.order-type-steps .step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.order-type-steps .step-num {
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  font-weight: 700;
+  font-size: 11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Thèmes spécifiques par type d'ordre */
+.banner-sell-stop {
+  border-color: rgba(239, 68, 68, 0.6);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(15, 23, 42, 0.9));
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
+}
+.banner-sell-stop .order-badge-pill {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+.banner-sell-stop .order-type-steps {
+  border-left-color: #ef4444;
+}
+
+.banner-sell-limit {
+  border-color: rgba(244, 63, 94, 0.6);
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(15, 23, 42, 0.9));
+  box-shadow: 0 4px 20px rgba(244, 63, 94, 0.15);
+}
+.banner-sell-limit .order-badge-pill {
+  background: #f43f5e;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
+}
+.banner-sell-limit .order-type-steps {
+  border-left-color: #f43f5e;
+}
+
+.banner-buy-limit {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(15, 23, 42, 0.9));
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
+}
+.banner-buy-limit .order-badge-pill {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+.banner-buy-limit .order-type-steps {
+  border-left-color: #10b981;
+}
+
+.banner-buy-stop {
+  border-color: rgba(6, 182, 212, 0.6);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(15, 23, 42, 0.9));
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.15);
+}
+.banner-buy-stop .order-badge-pill {
+  background: #06b6d4;
+  color: #042f2e;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+}
+.banner-buy-stop .order-type-steps {
+  border-left-color: #06b6d4;
+}
+
+.banner-market {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(15, 23, 42, 0.9));
+}
+.banner-market .order-badge-pill {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.banner-wait {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.05);
+}
+.banner-wait .order-badge-pill {
+  background: #f59e0b;
+  color: #1c1917;
+}
+
+/* ==========================================================================
+   BARRE FLOTTANTE D'ACTION RAPIDE SUR MOBILE (MT5 QUICK BAR)
+   ========================================================================== */
+.mobile-quick-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid #3b82f6;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: slideUpQuickBar 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpQuickBar {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.mobile-quick-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.mobile-quick-action {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.mobile-quick-symbol {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.mobile-quick-lots {
+  font-size: 12px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.mobile-quick-btn {
+  background: linear-gradient(135deg, #4f46e5, #10b981);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  min-height: 44px;
+}
+
+.mobile-quick-btn:active {
+  transform: scale(0.97);
+}
+
+/* ==========================================================================
+   OPTIMISATIONS RESPONSIVES MOBILES ET TABLETTES (iOS Safari & Android Chrome)
+   ========================================================================== */
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 70px; /* Espace pour la barre flottante */
+  }
+
+  /* Header compact */
+  .topbar {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  .brand h1 {
+    font-size: 15px;
+  }
+
+  .subtitle {
+    display: none; /* Simplifier sur petit écran */
+  }
+
+  .connection-bar {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .btn-outline {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  /* Workspace en 1 seule colonne */
+  .workspace {
+    margin: 10px auto;
+    padding: 0 10px 20px;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  /* Zone d'upload optimisée au toucher */
+  .upload-zone {
+    padding: 24px 14px;
+  }
+
+  .upload-icon {
+    font-size: 34px;
+  }
+
+  /* Grille MT5 sur mobile : boutons de copie larges pour le pouce */
+  .mt5-fields-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mt5-field {
+    padding: 10px 14px;
+    min-height: 52px;
+  }
+
+  .copy-btn-mini {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .mt5-val {
+    font-size: 16px;
+  }
+
+  .mt5-lots-val {
+    font-size: 18px;
+  }
+
+  /* Ajusteur de risque sur mobile */
+  .mt5-risk-adjuster {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .risk-pills-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 100%;
+    gap: 6px;
+  }
+
+  .risk-pill-btn {
+    min-height: 40px;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+
+  /* Boutons d'export MT5 sur mobile */
+  .mt5-export-bar {
+    flex-direction: column;
+  }
+
+  .btn-export-primary,
+  .btn-export-secondary {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  /* Niveaux de prix (Entrée, SL, TP) empilés lisibles */
+  .levels-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .level-box {
+    padding: 10px 12px;
+  }
+
+  .copy-val-btn {
+    min-width: 44px;
+    min-height: 38px;
+    padding: 6px 12px;
+  }
+
+  .asset-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .risk-strip {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .risk-pill {
+    justify-content: space-between;
+  }
+
+  .journal-wrapper {
+    padding: 0 10px;
+  }
+}
+
+@media (min-width: 769px) {
+  /* Masquer la barre mobile sur grands écrans */
+  .mobile-quick-bar {
+    display: none !important;
+  }
+}

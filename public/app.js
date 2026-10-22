@@ -561,6 +561,91 @@ const ORDER_TYPE_LABELS = {
   AUCUN: 'Aucun'
 };
 
+const ORDER_TYPE_DETAILS = {
+  SELL_STOP: {
+    label: 'SELL STOP',
+    bannerClass: 'banner-sell-stop',
+    tag: '📉 Vente sur cassure baissière',
+    explanation: 'Un <strong>SELL STOP</strong> est un ordre de vente placé <strong>en dessous du prix actuel</strong>. Si le marché casse le support et traverse votre niveau d\'entrée, la position vendeuse s\'ouvre automatiquement pour profiter de la chute.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Sell Stop"',
+      'Indiquez le Prix d\'entrée, le Stop Loss et le Take Profit'
+    ]
+  },
+  SELL_LIMIT: {
+    label: 'SELL LIMIT',
+    bannerClass: 'banner-sell-limit',
+    tag: '⤴️ Vente sur rebond / résistance',
+    explanation: 'Un <strong>SELL LIMIT</strong> est un ordre de vente placé <strong>au-dessus du prix actuel</strong>. Vous anticipez que le marché va remonter tester une résistance clé avant de repartir à la baisse.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Sell Limit"',
+      'Indiquez le Prix haut de vente, le Stop Loss et le Take Profit'
+    ]
+  },
+  BUY_LIMIT: {
+    label: 'BUY LIMIT',
+    bannerClass: 'banner-buy-limit',
+    tag: '⤵️ Achat sur repli / support',
+    explanation: 'Un <strong>BUY LIMIT</strong> est un ordre d\'achat placé <strong>en dessous du prix actuel</strong>. Vous attendez un repli sur un support solide pour acheter à un cours plus avantageux.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Buy Limit"',
+      'Indiquez le Prix bas d\'achat, le Stop Loss et le Take Profit'
+    ]
+  },
+  BUY_STOP: {
+    label: 'BUY STOP',
+    bannerClass: 'banner-buy-stop',
+    tag: '🚀 Achat sur cassure haussière',
+    explanation: 'Un <strong>BUY STOP</strong> est un ordre d\'achat placé <strong>au-dessus du prix actuel</strong>. Dès que le marché franchit la résistance avec volume, votre achat s\'exécute pour accompagner l\'impulsion.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Buy Stop"',
+      'Indiquez le Prix de cassure, le Stop Loss et le Take Profit'
+    ]
+  },
+  BUY_MARKET: {
+    label: 'BUY (EXÉCUTION MARCHÉ)',
+    bannerClass: 'banner-market',
+    tag: '⚡ Achat immédiat',
+    explanation: 'Achat instantané au prix actuel du marché. N\'attendez aucun seuil différé.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou "Trade")',
+      'Vérifiez le volume de Lots calculé',
+      'Cliquez sur le bouton bleu "Buy by Market"',
+      'Renseignez votre Stop Loss immédiatement après'
+    ]
+  },
+  SELL_MARKET: {
+    label: 'SELL (EXÉCUTION MARCHÉ)',
+    bannerClass: 'banner-market',
+    tag: '⚡ Vente immédiate',
+    explanation: 'Vente instantanée au prix actuel du marché. N\'attendez aucun seuil différé.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou "Trade")',
+      'Vérifiez le volume de Lots calculé',
+      'Cliquez sur le bouton rouge "Sell by Market"',
+      'Renseignez votre Stop Loss immédiatement après'
+    ]
+  },
+  WAIT: {
+    label: 'AUCUN ORDRE (ATTENDRE)',
+    bannerClass: 'banner-wait',
+    tag: '🛡️ Protection du Capital',
+    explanation: 'Aucune configuration à haute probabilité ou ratio risque/gain insuffisant. Restez à l\'écart du marché pour protéger votre capital.',
+    steps: [
+      'Ne placez aucun ordre sur MT5',
+      'Attendez la clôture de la bougie ou une nouvelle opportunité claire'
+    ]
+  }
+};
+
 function renderAnalysisResult(data) {
   loadingState.classList.add('hidden');
   resultContainer.classList.remove('hidden');
@@ -848,6 +933,57 @@ function updateMt5OrderSlip(data) {
       liveRiskSummary.innerHTML = 'Perte max : <strong>0.00 $</strong> · Gain attendu : <strong>0.00 $</strong>';
     }
   }
+
+  // Résolution et affichage du guide pédagogique pour le type d'ordre (SELL STOP, BUY LIMIT...)
+  let orderKey = 'WAIT';
+  if (hasOrder) {
+    if (oType === 'MARKET') {
+      orderKey = action === 'BUY' ? 'BUY_MARKET' : 'SELL_MARKET';
+    } else if (ORDER_TYPE_DETAILS[oType]) {
+      orderKey = oType;
+    } else {
+      orderKey = action === 'BUY' ? 'BUY_LIMIT' : 'SELL_LIMIT';
+    }
+  }
+  const details = ORDER_TYPE_DETAILS[orderKey] || ORDER_TYPE_DETAILS.WAIT;
+
+  const banner = document.getElementById('orderTypeBanner');
+  const badgePill = document.getElementById('orderTypeBadgePill');
+  const dirTag = document.getElementById('orderDirectionTag');
+  const expElem = document.getElementById('orderTypeExplanation');
+  const stepsElem = document.getElementById('orderTypeSteps');
+
+  if (banner) {
+    banner.className = `order-type-banner ${details.bannerClass}`;
+  }
+  if (badgePill) badgePill.textContent = details.label;
+  if (dirTag) dirTag.textContent = details.tag;
+  if (expElem) expElem.innerHTML = details.explanation;
+  if (stepsElem && details.steps) {
+    stepsElem.innerHTML = details.steps
+      .map((st, i) => `<div class="step-item"><span class="step-num">${i + 1}</span><span>${st}</span></div>`)
+      .join('');
+  }
+
+  // Barre rapide flottante pour mobile
+  const quickBar = document.getElementById('mobileQuickBar');
+  const quickAction = document.getElementById('mobileQuickAction');
+  const quickSym = document.getElementById('mobileQuickSymbol');
+  const quickLots = document.getElementById('mobileQuickLots');
+
+  if (quickBar) {
+    if (hasOrder) {
+      quickBar.classList.remove('hidden');
+      if (quickAction) {
+        quickAction.textContent = details.label;
+        quickAction.style.background = action === 'BUY' ? '#10b981' : '#ef4444';
+      }
+      if (quickSym) quickSym.textContent = sym;
+      if (quickLots) quickLots.textContent = lotCalc ? `${lotCalc.lots} lots` : '-- lots';
+    } else {
+      quickBar.classList.add('hidden');
+    }
+  }
 }
 
 // Boutons de risque rapide (0.25%, 0.50%, 1.00%, 2.00%)
@@ -882,8 +1018,8 @@ document.querySelectorAll('.copy-btn-mini').forEach(btn => {
   });
 });
 
-// Bouton copier tout le ticket MT5
-document.getElementById('copyAllMt5Btn')?.addEventListener('click', async () => {
+// Fonction partagée pour copier la fiche MT5 complète
+async function handleCopyFullMt5Ticket(triggerBtn) {
   const sym = document.getElementById('mt5Symbol')?.textContent || 'XAUUSD';
   const type = document.getElementById('mt5Type')?.textContent || '--';
   const lots = document.getElementById('mt5Lots')?.textContent || '--';
@@ -905,9 +1041,21 @@ document.getElementById('copyAllMt5Btn')?.addEventListener('click', async () => 
   ].join('\n');
 
   await copyText(text);
-  const btn = document.getElementById('copyAllMt5Btn');
-  btn.textContent = '✅ Fiche MT5 Copiée !';
-  setTimeout(() => (btn.textContent = '📋 Copier Fiche Complète MT5'), 1500);
+  if (triggerBtn) {
+    const originalText = triggerBtn.textContent;
+    triggerBtn.textContent = '✅ Copié !';
+    setTimeout(() => (triggerBtn.textContent = originalText), 1500);
+  }
+}
+
+// Bouton copier tout le ticket MT5
+document.getElementById('copyAllMt5Btn')?.addEventListener('click', (e) => {
+  handleCopyFullMt5Ticket(e.currentTarget);
+});
+
+// Bouton copier dans la barre flottante mobile
+document.getElementById('mobileQuickCopyBtn')?.addEventListener('click', (e) => {
+  handleCopyFullMt5Ticket(e.currentTarget);
 });
 
 // Bouton export Telegram / Discord

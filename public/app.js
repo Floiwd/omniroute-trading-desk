@@ -73,6 +73,18 @@ async function checkOmniRouteStatus() {
   }
 
   const userKey = customApiKeyInput.value.trim();
+  if (userKey.startsWith('xai-')) {
+    omniStatusBadge.className = 'status-badge online';
+    omniStatusText.textContent = 'Grok (xAI Vision) actif';
+    maskedKeyLabel.textContent = `${userKey.slice(0, 8)}•••• (Grok)`;
+    return;
+  }
+  if (userKey.startsWith('gsk_')) {
+    omniStatusBadge.className = 'status-badge online';
+    omniStatusText.textContent = 'Groq (LPU Vision) actif';
+    maskedKeyLabel.textContent = `${userKey.slice(0, 8)}•••• (Groq)`;
+    return;
+  }
   if (userKey.startsWith('sk-or-')) {
     omniStatusBadge.className = 'status-badge online';
     omniStatusText.textContent = 'Clé OpenRouter active';

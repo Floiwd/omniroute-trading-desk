@@ -31,6 +31,8 @@ const MAX_BODY_BYTES = 20 * 1024 * 1024;
 const OMNIROUTE_BASE = process.env.OMNIROUTE_URL || 'http://127.0.0.1:20128/v1';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
+const XAI_BASE = 'https://api.x.ai/v1';
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
 
 // Profils d'analyse : modèles mesurés sur un graphique test.
 const PROFILES = {
@@ -66,6 +68,16 @@ const PROFILES = {
       primary: ['google/gemini-2.5-pro', 'anthropic/claude-3.5-sonnet'],
       verifier: ['google/gemini-2.5-flash']
     }
+  },
+  grok: {
+    rapide: { primary: ['grok-2-vision-1212', 'grok-vision-beta'], verifier: null },
+    precis: { primary: ['grok-2-vision-1212'], verifier: ['grok-2-vision-1212'] },
+    ultra: { primary: ['grok-2-vision-1212'], verifier: ['grok-2-vision-1212'] }
+  },
+  groq: {
+    rapide: { primary: ['llama-3.2-11b-vision-preview'], verifier: null },
+    precis: { primary: ['llama-3.2-90b-vision-preview'], verifier: ['llama-3.2-11b-vision-preview'] },
+    ultra: { primary: ['llama-3.2-90b-vision-preview'], verifier: ['llama-3.2-11b-vision-preview'] }
   }
 };
 
@@ -128,6 +140,12 @@ async function isOmniRouteOnline(key) {
 async function resolveProvider(customApiKey) {
   const custom = (customApiKey || '').trim();
   if (custom) {
+    if (custom.startsWith('xai-')) {
+      return { name: 'grok', base: XAI_BASE, apiKey: custom, source: 'navigateur (Grok xAI)' };
+    }
+    if (custom.startsWith('gsk_')) {
+      return { name: 'groq', base: GROQ_BASE, apiKey: custom, source: 'navigateur (Groq)' };
+    }
     if (custom.startsWith('sk-or-')) {
       return { name: 'openrouter', base: OPENROUTER_BASE, apiKey: custom, source: 'navigateur (OpenRouter)' };
     }
@@ -144,13 +162,25 @@ async function resolveProvider(customApiKey) {
     return { name: 'omniroute', base: OMNIROUTE_BASE, apiKey: omniKey, source: 'trousseau (OmniRoute)' };
   }
 
-  // 2. OpenRouter côté serveur si configuré (très populaire sur Vercel)
+  // 2. Grok (xAI) côté serveur si configuré
+  const xaiKey = (process.env.XAI_API_KEY || process.env.GROK_API_KEY || '').trim();
+  if (xaiKey) {
+    return { name: 'grok', base: XAI_BASE, apiKey: xaiKey, source: 'serveur (Grok xAI)' };
+  }
+
+  // 3. Groq (LPU) côté serveur si configuré
+  const groqKey = (process.env.GROQ_API_KEY || '').trim();
+  if (groqKey) {
+    return { name: 'groq', base: GROQ_BASE, apiKey: groqKey, source: 'serveur (Groq)' };
+  }
+
+  // 4. OpenRouter côté serveur si configuré
   const openrouterKey = (process.env.OPENROUTER_API_KEY || '').trim();
   if (openrouterKey) {
     return { name: 'openrouter', base: OPENROUTER_BASE, apiKey: openrouterKey, source: 'serveur (OpenRouter)' };
   }
 
-  // 3. Clé Gemini (Trousseau ou variable d'environnement GEMINI_API_KEY)
+  // 5. Clé Gemini (Trousseau ou variable d'environnement GEMINI_API_KEY)
   const geminiKey = getGeminiKey();
   if (geminiKey) {
     return {

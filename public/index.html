@@ -21,6 +21,9 @@
         <span class="dot"></span>
         <span id="omniStatusText">Connexion à OmniRoute...</span>
       </div>
+      <button id="soundToggleBtn" class="btn-ghost" title="Activer / Couper les sons de fin d'analyse">
+        🔔 Son : Actif
+      </button>
       <button id="toggleKeyBtn" class="btn-ghost" title="Configurer ou vérifier la clé OmniRoute">
         ⚙️ Clé API &amp; mode : <span id="maskedKeyLabel">Auto (Keychain)</span>
       </button>
@@ -76,10 +79,15 @@
           </div>
 
           <div id="previewContainer" class="preview-container hidden">
-            <img id="chartPreview" alt="Aperçu du graphique" />
+            <div class="preview-image-wrapper">
+              <img id="chartPreview" alt="Aperçu du graphique" />
+              <canvas id="chartOverlayCanvas"></canvas>
+            </div>
             <div class="preview-actions">
               <button type="button" id="changeImageBtn" class="btn-small">Changer l'image</button>
-              <button type="button" id="demoChartBtn" class="btn-small">Tester avec un graphique démo</button>
+              <button type="button" id="toggleOverlayBtn" class="btn-small active">👁️ Masquer les niveaux</button>
+              <button type="button" id="fullscreenBtn" class="btn-small">🔍 Agrandir</button>
+              <button type="button" id="demoChartBtn" class="btn-small">Tester un graphique démo</button>
             </div>
           </div>
         </div>
@@ -273,27 +281,98 @@
           </div>
         </div>
 
-        <!-- NOUVEAU : GUIDE D'EXÉCUTION MT5 PAS À PAS -->
-        <div class="card mt5-guide-card" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border: 1px solid #4338ca;">
+        <!-- FICHE D'ORDRE MT5 EXPRESS (TOUCHE F9 DANS METATRADER 5) -->
+        <div class="card mt5-order-slip">
           <div class="card-header">
-            <h2 style="color: #c7d2fe;">📈 Guide d'Exécution MT5 Pas à Pas</h2>
-            <span style="background: #3730a3; color: #a5b4fc; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold;">Zéro Doute</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="mt5-logo-badge">MT5</div>
+              <div>
+                <h2 style="font-size: 16px; margin: 0; color: #ffffff;">Fiche d'Ordre MT5 Express (Touche F9)</h2>
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">Reportez directement ces valeurs dans MetaTrader 5 sans aucun doute</p>
+              </div>
+            </div>
+            <span class="mt5-asset-type-badge" id="mt5AssetTypeBadge">Forex / CFD</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; font-size: 14px; color: #e2e8f0;">
-            <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 8px;">
-              <span style="color: #93c5fd; display: block; font-weight: bold; margin-bottom: 4px;">1. Type d'Ordre MT5</span>
-              <strong id="outMt5OrderType" style="color: #ffffff; font-size: 15px;">--</strong>
+
+          <!-- Les 6 champs exacts de la fenêtre d'ordre MT5 -->
+          <div class="mt5-fields-grid">
+            <div class="mt5-field">
+              <span class="mt5-label">1. Symbole</span>
+              <div class="mt5-val-row">
+                <strong id="mt5Symbol" class="mt5-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5Symbol" title="Copier le symbole">📋</button>
+              </div>
             </div>
-            <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 8px;">
-              <span style="color: #93c5fd; display: block; font-weight: bold; margin-bottom: 4px;">2. Action à faire</span>
-              <strong id="outMt5Action" style="color: #ffffff; font-size: 15px;">--</strong>
+
+            <div class="mt5-field">
+              <span class="mt5-label">2. Type d'ordre</span>
+              <div class="mt5-val-row">
+                <strong id="mt5Type" class="mt5-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5Type" title="Copier le type d'ordre">📋</button>
+              </div>
             </div>
-            <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 8px;">
-              <span style="color: #93c5fd; display: block; font-weight: bold; margin-bottom: 4px;">3. Volume & Risque</span>
-              <strong id="outMt5Volume" style="color: #ffffff; font-size: 14px;">--</strong>
+
+            <div class="mt5-field mt5-field-highlight">
+              <span class="mt5-label">3. Volume (Lots) 🔥</span>
+              <div class="mt5-val-row">
+                <strong id="mt5Lots" class="mt5-val mt5-lots-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5Lots" title="Copier le volume en lots">📋</button>
+              </div>
+            </div>
+
+            <div class="mt5-field">
+              <span class="mt5-label">4. Prix (Entrée)</span>
+              <div class="mt5-val-row">
+                <strong id="mt5Price" class="mt5-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5Price" title="Copier le prix">📋</button>
+              </div>
+            </div>
+
+            <div class="mt5-field mt5-field-sl">
+              <span class="mt5-label">5. Stop Loss</span>
+              <div class="mt5-val-row">
+                <strong id="mt5SL" class="mt5-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5SL" title="Copier le Stop Loss">📋</button>
+              </div>
+            </div>
+
+            <div class="mt5-field mt5-field-tp">
+              <span class="mt5-label">6. Take Profit</span>
+              <div class="mt5-val-row">
+                <strong id="mt5TP" class="mt5-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5TP" title="Copier le Take Profit">📋</button>
+              </div>
             </div>
           </div>
-          <p id="outMt5Instruction" style="margin-top: 12px; font-size: 13px; color: #cbd5e1; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border-left: 4px solid #6366f1;">--</p>
+
+          <!-- Ajusteur de risque en temps réel pour recalculer le lot instantanément -->
+          <div class="mt5-risk-adjuster">
+            <div class="adjuster-item">
+              <span>Capital ($ / €) :</span>
+              <input type="number" id="liveCapitalInput" value="10000" min="100" step="500" />
+            </div>
+            <div class="adjuster-item">
+              <span>Risque souhaité :</span>
+              <div class="risk-pills-row">
+                <button type="button" class="risk-pill-btn" data-risk="0.25">0.25%</button>
+                <button type="button" class="risk-pill-btn active" data-risk="0.50">0.50%</button>
+                <button type="button" class="risk-pill-btn" data-risk="1.00">1.00%</button>
+                <button type="button" class="risk-pill-btn" data-risk="2.00">2.00%</button>
+              </div>
+            </div>
+            <div class="adjuster-item adjuster-feedback">
+              <span id="liveRiskSummary">Perte max : <strong>--</strong> · Gain attendu : <strong>--</strong></span>
+            </div>
+          </div>
+
+          <p id="outMt5Instruction" class="mt5-instruction-box">--</p>
+
+          <!-- Boutons d'export rapide multi-plateforme -->
+          <div class="mt5-export-bar">
+            <button type="button" id="copyAllMt5Btn" class="btn-export-primary">📋 Copier Fiche Complète MT5</button>
+            <button type="button" id="copyTelegramBtn" class="btn-export-secondary">💬 Format Telegram / Discord</button>
+            <button type="button" id="copyPineBtn" class="btn-export-secondary">📊 Pine Script (TradingView)</button>
+          </div>
         </div>
 
         <!-- INVALIDATION & CHECKLIST AVANT DE CLIQUER -->
@@ -334,6 +413,45 @@
       </div>
     </section>
   </main>
+
+  <!-- SECTION JOURNAL DE TRADING & HISTORIQUE LOCAL -->
+  <section class="journal-wrapper">
+    <div class="card journal-card">
+      <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">📒</span>
+          <div>
+            <h2 style="font-size: 16px; margin: 0;">Journal de Trading &amp; Historique Local</h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Sauvegarde automatique sur votre navigateur (confidentiel &amp; hors-ligne)</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="exportCsvBtn" class="btn-small">📥 Exporter en CSV</button>
+          <button type="button" id="clearHistoryBtn" class="btn-small btn-danger">🗑️ Vider l'historique</button>
+        </div>
+      </div>
+      <div id="historyEmpty" class="history-empty">
+        Aucune analyse enregistrée pour le moment. Analysez un graphique pour alimenter automatiquement votre journal.
+      </div>
+      <div id="historyList" class="history-grid hidden"></div>
+    </div>
+  </section>
+
+  <!-- MODAL PLEIN ÉCRAN / LIGHTBOX POUR LE GRAPHIQUE -->
+  <div id="lightboxModal" class="lightbox-modal hidden" tabindex="-1">
+    <div class="lightbox-content">
+      <div class="lightbox-header">
+        <h3 id="lightboxTitle">Aperçu Agrandie du Graphique &amp; Niveaux</h3>
+        <button type="button" id="closeLightboxBtn" class="btn-close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="lightbox-body">
+        <div class="lightbox-canvas-wrapper">
+          <img id="lightboxImg" alt="Plein écran graphique" />
+          <canvas id="lightboxCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

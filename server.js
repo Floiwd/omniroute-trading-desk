@@ -139,7 +139,8 @@ async function isOmniRouteOnline(key) {
 // Choisit le meilleur fournisseur disponible.
 async function resolveProvider(customApiKey) {
   const custom = (customApiKey || '').trim();
-  if (custom) {
+  // Ignorer toute clé masquée ou corrompue contenant des puces ••••
+  if (custom && !custom.includes('•')) {
     if (custom.startsWith('xai-')) {
       return { name: 'grok', base: XAI_BASE, apiKey: custom, source: 'navigateur (Grok xAI)' };
     }
@@ -152,7 +153,11 @@ async function resolveProvider(customApiKey) {
     if (looksLikeGeminiKey(custom)) {
       return { name: 'gemini', base: GEMINI_BASE, apiKey: custom, source: 'navigateur (Gemini)' };
     }
-    return { name: 'omniroute', base: OMNIROUTE_BASE, apiKey: custom, source: 'navigateur (OmniRoute)' };
+    // Clé OmniRoute locale : UNIQUEMENT si le serveur local 127.0.0.1 répond
+    const omni = await isOmniRouteOnline(custom);
+    if (omni.online) {
+      return { name: 'omniroute', base: OMNIROUTE_BASE, apiKey: custom, source: 'navigateur (OmniRoute)' };
+    }
   }
 
   // 1. OmniRoute local si disponible (sur Mac)

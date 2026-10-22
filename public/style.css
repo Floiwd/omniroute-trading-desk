@@ -728,3 +728,454 @@ kbd {
   font-size: 11px;
   overflow-x: auto;
 }
+
+/* ==========================================================================
+   IMAGE PREVIEW & CHART OVERLAY
+   ========================================================================== */
+.preview-image-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #070a12;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.preview-image-wrapper img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+#chartOverlayCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   FICHE D'ORDRE MT5 EXPRESS
+   ========================================================================== */
+.mt5-order-slip {
+  background: linear-gradient(135deg, #13172e 0%, #1e1b4b 100%);
+  border: 1px solid #4338ca;
+  box-shadow: 0 8px 30px rgba(67, 56, 202, 0.15);
+}
+
+.mt5-logo-badge {
+  background: linear-gradient(135deg, #4f46e5, #06b6d4);
+  color: #fff;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.mt5-asset-type-badge {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.mt5-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.mt5-field {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mt5-field-highlight {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.mt5-field-sl {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.mt5-field-tp {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.mt5-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.mt5-val-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.mt5-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.mt5-lots-val {
+  color: #34d399;
+  font-size: 17px;
+}
+
+.copy-btn-mini {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.copy-btn-mini:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.copy-btn-mini.copied {
+  background: #10b981;
+  color: #fff;
+  border-color: #10b981;
+}
+
+/* Ajusteur de risque en temps réel */
+.mt5-risk-adjuster {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 8px;
+  border: 1px dashed rgba(99, 102, 241, 0.3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.adjuster-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+}
+
+.adjuster-item input[type="number"] {
+  width: 90px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.risk-pills-row {
+  display: flex;
+  gap: 4px;
+}
+
+.risk-pill-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.risk-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.risk-pill-btn.active {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #6366f1;
+}
+
+.adjuster-feedback {
+  margin-left: auto;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.adjuster-feedback strong {
+  color: #38bdf8;
+}
+
+.mt5-instruction-box {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 4px solid #6366f1;
+  line-height: 1.5;
+}
+
+/* Barre d'export multi-plateforme */
+.mt5-export-bar {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-export-primary {
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btn-export-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-export-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-export-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* ==========================================================================
+   JOURNAL DE TRADING & HISTORIQUE
+   ========================================================================== */
+.journal-wrapper {
+  max-width: 1440px;
+  margin: 0 auto 40px auto;
+  padding: 0 24px;
+}
+
+.journal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.history-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 30px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  margin-top: 14px;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.history-card {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.history-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-card-sym {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+.history-card-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.history-card-levels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.history-card-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.history-card-badge.buy { background: var(--buy-bg); color: var(--buy); }
+.history-card-badge.sell { background: var(--sell-bg); color: var(--sell); }
+.history-card-badge.wait { background: var(--wait-bg); color: var(--wait); }
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* ==========================================================================
+   LIGHTBOX MODAL
+   ========================================================================== */
+.lightbox-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(3, 7, 18, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.lightbox-modal.hidden {
+  display: none;
+}
+
+.lightbox-content {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  max-width: 95vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.lightbox-header h3 {
+  font-size: 15px;
+  color: #f3f4f6;
+  margin: 0;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.btn-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lightbox-body {
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.lightbox-canvas-wrapper {
+  position: relative;
+  max-width: 100%;
+}
+
+.lightbox-canvas-wrapper img {
+  display: block;
+  max-width: 100%;
+  max-height: 75vh;
+  border-radius: 6px;
+}
+
+#lightboxCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

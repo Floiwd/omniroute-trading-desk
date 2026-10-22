@@ -617,36 +617,20 @@ function renderAnalysisResult(data) {
     document.getElementById('outMaxLossMoney').textContent = '0.00 (Aucun ordre actif)';
   }
 
-  // Remplissage du Guide MT5 Pas à Pas
-  const mt5OrderTypeElem = document.getElementById('outMt5OrderType');
-  const mt5ActionElem = document.getElementById('outMt5Action');
-  const mt5VolumeElem = document.getElementById('outMt5Volume');
+  // Mise à jour de l'instruction d'exécution MT5
   const mt5InstructionElem = document.getElementById('outMt5Instruction');
-
   const oType = String(verdict.order_type || '').toUpperCase();
-  const slDist = plan.computed?.sl_distance;
-  const volumeText = `Risque : ${riskPct}% (~${maxLossVal} $ / € max)${slDist ? ` · distance SL ${slDist}` : ''}`;
-
-  if (!hasOrder) {
-    mt5OrderTypeElem.textContent = 'AUCUN ORDRE (ATTENDRE)';
-    mt5ActionElem.textContent = 'NE RIEN FAIRE SUR MT5';
-    mt5VolumeElem.textContent = 'Lot = 0 (Pas de risque)';
-    mt5InstructionElem.textContent = `🛑 SÉCURITÉ ANTI-HALLUCINATION : patientez (${verdict.headline_reason || 'signal non optimal'}). Ne placez aucun ordre tant que les conditions ne sont pas réunies.`;
-  } else if (/LIMIT|STOP/.test(oType)) {
-    const isBuy = action === 'BUY';
-    const label = ORDER_TYPE_LABELS[oType] || (isBuy ? 'Buy Limit' : 'Sell Limit');
-    mt5OrderTypeElem.textContent = `${label} (Ordre en attente)`;
-    mt5ActionElem.textContent = oType.includes('STOP')
-      ? (isBuy ? 'ACHAT SUR CASSURE' : 'VENTE SUR CASSURE')
-      : (isBuy ? 'ACHAT SUR REPLI' : 'VENTE SUR REBOND');
-    mt5VolumeElem.textContent = volumeText;
-    mt5InstructionElem.textContent = `📋 DANS MT5 : Nouvel ordre → Type : "Ordre en attente" → "${label}" → Prix : ${inputs.entry_price} → SL : ${inputs.stop_loss} → TP : ${inputs.take_profit_1}.`;
-  } else {
-    const isBuy = action === 'BUY';
-    mt5OrderTypeElem.textContent = isBuy ? 'Exécution instantanée (Buy Market)' : 'Exécution instantanée (Sell Market)';
-    mt5ActionElem.textContent = isBuy ? 'ACHETER DIRECT' : 'VENDRE DIRECT';
-    mt5VolumeElem.textContent = volumeText;
-    mt5InstructionElem.textContent = `📋 DANS MT5 : Cliquez sur "${isBuy ? 'Buy by Market' : 'Sell by Market'}" → SL : ${inputs.stop_loss} → TP : ${inputs.take_profit_1}.`;
+  if (mt5InstructionElem) {
+    if (!hasOrder) {
+      mt5InstructionElem.textContent = `🛑 SÉCURITÉ ANTI-HALLUCINATION : patientez (${verdict.headline_reason || 'signal non optimal'}). Ne placez aucun ordre tant que les conditions ne sont pas réunies.`;
+    } else if (/LIMIT|STOP/.test(oType)) {
+      const isBuy = action === 'BUY';
+      const label = ORDER_TYPE_LABELS[oType] || (isBuy ? 'Buy Limit' : 'Sell Limit');
+      mt5InstructionElem.textContent = `📋 DANS MT5 : Nouvel ordre (F9) → Type : "Ordre en attente" → "${label}" → Prix : ${inputs.entry_price} → SL : ${inputs.stop_loss} → TP : ${inputs.take_profit_1}.`;
+    } else {
+      const isBuy = action === 'BUY';
+      mt5InstructionElem.textContent = `📋 DANS MT5 : Nouvel ordre (F9) → Cliquez sur "${isBuy ? 'Buy by Market' : 'Sell by Market'}" → SL : ${inputs.stop_loss} → TP : ${inputs.take_profit_1}.`;
+    }
   }
 
   // Invalidation & Confluences

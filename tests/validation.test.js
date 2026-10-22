@@ -79,3 +79,16 @@ test('Consensus : prix actuel divergent → NO_TRADE', () => {
   applyConsensus(p, ocr(), { ocr: ocr({ current_price_on_chart: '2625.70' }), plan: plan('BUY', 'MARKET'), model: 'x' });
   assert.strictEqual(p.verdict.action, 'NO_TRADE');
 });
+
+test('Capital et calcul précis des lots (Gold XAUUSD & Forex)', () => {
+  // Test avec capital de 500$ et risque de 1% (5$) sur XAUUSD avec SL de 2$
+  const p = validateAndSanitizePlan(
+    ocr({ symbol_on_chart: 'XAUUSD' }),
+    plan('BUY', 'MARKET', '2650.00', '2648.00', '2656.00', '2660.00'),
+    { capital: '500', riskPercent: '1.0' }
+  );
+  assert.strictEqual(p.essential_order_inputs.account_capital, 500);
+  assert.strictEqual(p.essential_order_inputs.risk_amount_money, '5.00');
+  // 5$ de risque / (2$ distance * 100 onces) = 0.025 lot -> arrondi à 0.03 ou 0.02
+  assert.ok(parseFloat(p.essential_order_inputs.recommended_lots) > 0);
+});

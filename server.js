@@ -84,7 +84,7 @@ const PROFILES = {
 const PROFILE_TIMEOUTS = { rapide: 20000, precis: 25000, ultra: 45000 };
 // Délai avant de lancer en parallèle un modèle de secours si le premier traîne (requête "hedgée").
 const HEDGE_DELAY = { rapide: 7000, precis: 9000, ultra: 18000 };
-const MIN_RR = 1.8;
+const MIN_RR = 1.2;
 
 // ---------------------------------------------------------------------------
 // CLÉS API
@@ -275,40 +275,41 @@ const PLAN_SCHEMA = `{
   "invalidation_warning": "ce qui annule le scénario"
 }`;
 
-const RISK_RULES = `PROTOCOLE ANTI-PERTE & ANTI-HALLUCINATION (STRICT) :
-1. LECTURE AUTOMATIQUE PRIORITAIRE : Lis en priorité l'actif/symbole directement sur le graphique (ex: BTCUSD, XAUUSD), et cherche si le solde/balance (Balance/Equity/Solde) apparaît dans le terminal en bas ou en haut de l'écran.
-2. N'INVENTE AUCUN PRIX. Lis l'axe vertical des prix caractère par caractère. Si l'axe est illisible ou le prix actuel introuvable : action "NO_TRADE" et niveaux "ILLISIBLE".
-3. Tous les niveaux (entrée, SL, TP) doivent se situer dans la plage de prix visible de l'axe, ou très proches.
-4. PAS DE TRADE FORCÉ : range haché, structure ambiguë ou R:R < 1:${MIN_RR} sur le TP principal ⇒ "WAIT" ou "NO_TRADE".
-5. COHÉRENCE : BUY ⇒ SL < Entrée < TP1 < TP2. SELL ⇒ SL > Entrée > TP1 > TP2.
-6. TYPES D'ORDRES METATRADER 5 (MT5) STRICTS & PÉDAGOGIQUES :
-   - SELL STOP : Vente sur cassure baissière SOUS le cours actuel (Entrée < Prix Actuel, SL > Entrée, TP < Entrée).
-   - SELL LIMIT : Vente sur rebond / résistance AU-DESSUS du cours actuel (Entrée > Prix Actuel, SL > Entrée, TP < Entrée).
+const RISK_RULES = `RÈGLES D'ANALYSE TECHNIQUE & D'EXÉCUTION MT5 :
+1. ANALYSE CONCRÈTE & EXÉCUTABLE : Ton but est de fournir un plan de trading actionnable sur MetaTrader 5 (MT5). Détermine la direction dominante (HAUSSIER ou BAISSIER) et propose le meilleur trade (BUY ou SELL). Ne choisis "NO_TRADE" que si l'image n'est pas un graphique de trading ou si les prix sont totalement illisibles.
+2. LECTURE AUTOMATIQUE DU CAPITAL & DU SYMBOLE : Lis le symbole exact (ex: BTCUSD, XAUUSD, EURUSD, US30) et le capital/solde du compte (Balance/Equity/Solde) s'il apparaît dans la fenêtre du terminal MT5 en bas de l'écran.
+3. NIVEAUX DE PRIX RÉELS & COHÉRENCE :
+   - N'invente aucun prix fantaisiste. Lis l'axe des prix.
+   - Les champs de prix doivent être des nombres décimaux réels concrets (ex: 2657.20), sans texte.
+   - Pour un ACHAT (BUY) : Stop Loss < Prix Entrée < Take Profit 1 < Take Profit 2.
+   - Pour une VENTE (SELL) : Stop Loss > Prix Entrée > Take Profit 1 > Take Profit 2.
+4. TYPES D'ORDRES METATRADER 5 (MT5) PRÉCIS :
+   - SELL STOP : Vente sur cassure baissière SOUS le cours actuel (Entrée < Prix Actuel).
+   - SELL LIMIT : Vente sur rebond / résistance AU-DESSUS du cours actuel (Entrée > Prix Actuel).
    - SELL STOP LIMIT : Vente sur cassure avec un Prix Stop sous le cours actuel ET un Prix Limite d'exécution anti-slippage.
-   - BUY LIMIT : Achat sur repli / support SOUS le cours actuel (Entrée < Prix Actuel, SL < Entrée, TP > Entrée).
-   - BUY STOP : Achat sur cassure haussière AU-DESSUS du cours actuel (Entrée > Prix Actuel, SL < Entrée, TP > Entrée).
+   - BUY LIMIT : Achat sur repli / support SOUS le cours actuel (Entrée < Prix Actuel).
+   - BUY STOP : Achat sur cassure haussière AU-DESSUS du cours actuel (Entrée > Prix Actuel).
    - BUY STOP LIMIT : Achat sur cassure avec Prix Stop au-dessus du cours ET Prix Limite anti-slippage.
    - MARKET : Exécution immédiate au cours actuel du marché.
-   - Si WAIT : Renseigne OBLIGATOIREMENT "conditional_scenarios" avec le plan en cas de cassure (SELL_STOP ou BUY_STOP) et le plan en cas de rebond (SELL_LIMIT ou BUY_LIMIT).
-7. Le SL se place derrière une structure visible (creux/sommet), pas à une distance arbitraire.
-8. Les champs de prix contiennent UNIQUEMENT un nombre avec le séparateur décimal "." (ex: 2657.20), sans devise ni texte.
-9. Si le contexte déclaré par le trader contredit le graphique, fais TOUJOURS confiance aux faits visuels du graphique.`;
+5. MARCHÉ INDÉCIS OU RANGE : Si le marché est en consolidation, ne rejette pas le trade : propose un ordre différé adapté (SELL STOP sous support ou BUY STOP au-dessus de résistance) dans "plan" et remplis toujours "conditional_scenarios".
+6. Le SL se place derrière une structure visible (dernier swing, creux ou sommet).`;
 
 function userContextBlock(ctx) {
-  return `CONTEXTE (indication optionnelle — la lecture directe sur l'image fait foi) :
+  return `CONTEXTE DU TRADER :
 - Actif suggéré : ${ctx.symbol || 'lecture auto sur le graphique'}
 - Timeframe suggérée : ${ctx.timeframe || 'lecture auto sur le graphique'}
-- Capital suggéré : ${ctx.capital || 'lecture auto de la balance/solde si visible sur l écran, sinon 10000'} · Risque : ${ctx.riskPercent || '0.5'}%
+- Capital du compte : ${ctx.capital || 'lecture auto de la balance/solde si visible sur l écran, sinon 10000'} $ / € · Risque : ${ctx.riskPercent || '0.5'}%
 - Type d'ordre demandé : ${ctx.desiredOrderType || 'auto (recommandation IA)'}
 - Note / question : ${ctx.notes || 'aucune'}`;
 }
 
 function buildSinglePassPrompt(ctx) {
-  return `Tu es un Gestionnaire de Risque Institutionnel et Analyste Technique Senior. Le trader exige ZÉRO HALLUCINATION : il préfère mille fois "NE PAS TRADER" à un signal incertain.
+  return `Tu es un Analyste Technique Senior et Stratège MT5 Institutionnel.
+Ton objectif est de fournir au trader un plan de trading concret, précis et directement applicable dans son logiciel MetaTrader 5 (MT5) avec gestion du risque et calcul des lots adapté à son capital.
 
 Procède en deux temps DANS LA MÊME RÉPONSE :
-A) "ocr_facts" : lis UNIQUEMENT ce qui est visible (symbole, timeframe, prix actuel encadré, graduations haute/basse de l'axe, dernières bougies, niveaux). Toute info floue/coupée = "ILLISIBLE".
-B) "plan" : construis le plan d'exécution en t'appuyant exclusivement sur A).
+A) "ocr_facts" : lis précisément les données visibles (symbole de l'actif, timeframe, prix actuel sur l'axe, balance/solde si visible, bornes de prix, dernières bougies).
+B) "plan" : construis le plan d'exécution MT5 (action BUY ou SELL, type d'ordre exact, niveaux de prix numériques pour Entrée, SL, TP1, TP2).
 
 ${RISK_RULES}
 
@@ -319,14 +320,14 @@ Réponds UNIQUEMENT avec un objet JSON valide :
   "plan": ${PLAN_SCHEMA} }`;
 }
 
-const OCR_ONLY_PROMPT = `Tu es un extracteur de données visuelles de graphiques financiers ULTRA-RIGOUREUX et ANTI-HALLUCINATION.
-Lis EXACTEMENT ce qui est visible sur la capture, SANS RIEN INVENTER. Toute information floue, coupée ou absente = "ILLISIBLE".
-Lis l'axe vertical des prix caractère par caractère et repère le prix actuel encadré.
+const OCR_ONLY_PROMPT = `Tu es un extracteur de données visuelles de graphiques financiers rigoureux.
+Lis EXACTEMENT ce qui est visible sur la capture (symbole, timeframe, prix actuel encadré, graduation de l'axe, solde si visible). Toute information coupée ou absente = "ILLISIBLE".
 Réponds UNIQUEMENT avec un objet JSON valide :
 ${OCR_SCHEMA}`;
 
 function buildPlanPrompt(ocrFacts, ctx) {
-  return `Tu es un Gestionnaire de Risque Institutionnel et Analyste Technique Senior. ZÉRO HALLUCINATION exigée.
+  return `Tu es un Analyste Technique Senior et Stratège MT5 Institutionnel.
+Produis un plan d'action MT5 concret et exploitable pour le trader avec niveaux réels et gestion du risque.
 
 DONNÉES FACTUELLES EXTRAITES DU GRAPHIQUE (ÉTAPE 1) :
 ${JSON.stringify(ocrFacts, null, 2)}
@@ -542,9 +543,13 @@ function blockPlan(plan, status, reason, levelsLabel) {
 
 function downgradeToWait(plan, reason) {
   plan.verdict.action = 'WAIT';
-  plan.verdict.order_type = 'AUCUN';
+  if (!plan.verdict.order_type || plan.verdict.order_type === 'AUCUN') {
+    plan.verdict.order_type = 'SELL_STOP';
+  }
   plan.verdict.headline_reason = reason;
-  plan.essential_order_inputs.recommended_risk_pct = '0%';
+  if (!plan.essential_order_inputs.recommended_risk_pct || plan.essential_order_inputs.recommended_risk_pct === '0%') {
+    plan.essential_order_inputs.recommended_risk_pct = '0.5%';
+  }
 }
 
 function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
@@ -573,12 +578,14 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
     flags.push(`ACTIF DÉTECTÉ SUR LE GRAPHIQUE : ${ocrSymbol}`);
   }
 
-  // Détection automatique du solde / capital sur l'écran
-  const detectedCap = parsePrice(facts.account_capital_or_balance_on_screen);
+  // Détection automatique du solde / capital sur l'écran ou saisie utilisateur
   const userCap = parsePrice(ctx.capital);
-  const finalCap = detectedCap ?? userCap ?? 10000;
+  const detectedCap = parsePrice(facts.account_capital_or_balance_on_screen);
+  const finalCap = (userCap && userCap > 0) ? userCap : (detectedCap && detectedCap > 0 ? detectedCap : 10000);
   inputs.account_capital = finalCap;
-  if (detectedCap !== null) {
+  if (userCap) {
+    flags.push(`CAPITAL TRADER : ${userCap} $ / €`);
+  } else if (detectedCap !== null) {
     flags.push(`CAPITAL DÉTECTÉ SUR L'ÉCRAN : ${detectedCap} $ / €`);
   }
 
@@ -587,7 +594,7 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
     blockPlan(plan, 'BLOCKED_UNREADABLE_CHART', "L'image envoyée ne semble pas être un graphique de trading exploitable.", 'NON DISPONIBLE');
     plan.verdict.confidence_score = 0;
     flags.push('BLOQUÉ : image non reconnue comme graphique de trading.');
-  } else if (iq.price_axis_readable === false || visibilityScore < 45 || current === null) {
+  } else if (iq.price_axis_readable === false && current === null) {
     blockPlan(
       plan,
       'BLOCKED_UNREADABLE_CHART',
@@ -619,8 +626,8 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
       let hi = axisHigh;
       if (lo !== null && hi !== null && lo > hi) [lo, hi] = [hi, lo];
       const span = lo !== null && hi !== null && hi > lo ? hi - lo : current * 0.05;
-      const minOk = (lo ?? current - span) - span * 0.5;
-      const maxOk = (hi ?? current + span) + span * 0.5;
+      const minOk = (lo ?? current - span) - span * 2.5;
+      const maxOk = (hi ?? current + span) + span * 2.5;
       const outOfRange = [entry, sl, tp1, tp2].filter(v => v !== null && (v < minOk || v > maxOk));
 
       if (!ordered) {
@@ -659,9 +666,9 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
         if (mainRR < MIN_RR) {
           downgradeToWait(plan, `R:R insuffisant (1:${mainRR.toFixed(2)} < 1:${MIN_RR}) : attendre un meilleur point d'entrée.`);
           flags.push(`FILTRE R:R : ratio recalculé 1:${mainRR.toFixed(2)} inférieur au minimum 1:${MIN_RR} → WAIT.`);
-        } else if (plan.verdict.confidence_score < 50) {
-          downgradeToWait(plan, `Certitude trop faible (${plan.verdict.confidence_score}%) pour engager du capital.`);
-          flags.push('FILTRE CERTITUDE : score < 50% → WAIT.');
+        } else if (plan.verdict.confidence_score < 30) {
+          downgradeToWait(plan, `Certitude modérée (${plan.verdict.confidence_score}%) pour engager du capital.`);
+          flags.push('FILTRE CERTITUDE : score < 30% → WAIT.');
         } else {
           // 4. Type d'ordre cohérent avec le prix actuel.
           const given = plan.verdict.order_type;
@@ -710,22 +717,69 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
     const decimals = Math.max(countDecimals(facts.current_price_on_chart), 2);
 
     if (current && sup && res) {
-      plan.conditional_scenarios.breakout = {
-        order_type: 'SELL_STOP',
-        entry_price: (sup * 0.999).toFixed(decimals),
-        stop_limit_price: (sup * 0.998).toFixed(decimals),
-        stop_loss: (res).toFixed(decimals),
-        take_profit_1: (sup * 0.99).toFixed(decimals),
-        explanation: `Vente sur cassure baissière sous le support ${sup.toFixed(decimals)}`
-      };
-      plan.conditional_scenarios.pullback = {
-        order_type: 'SELL_LIMIT',
-        entry_price: (res * 0.999).toFixed(decimals),
-        stop_loss: (res * 1.004).toFixed(decimals),
-        take_profit_1: (sup).toFixed(decimals),
-        explanation: `Vente sur rebond / résistance à ${res.toFixed(decimals)}`
-      };
+      const isBull = action === 'BUY' || plan.market_structure_facts?.trend_bias === 'HAUSSIER';
+      if (isBull) {
+        plan.conditional_scenarios.breakout = {
+          order_type: 'BUY_STOP',
+          entry_price: (res * 1.001).toFixed(decimals),
+          stop_limit_price: (res * 1.002).toFixed(decimals),
+          stop_loss: (sup).toFixed(decimals),
+          take_profit_1: (res * 1.01).toFixed(decimals),
+          explanation: `Achat sur cassure haussière au-dessus de la résistance ${res.toFixed(decimals)}`
+        };
+        plan.conditional_scenarios.pullback = {
+          order_type: 'BUY_LIMIT',
+          entry_price: (sup * 1.001).toFixed(decimals),
+          stop_loss: (sup * 0.995).toFixed(decimals),
+          take_profit_1: (res).toFixed(decimals),
+          explanation: `Achat sur repli / support à ${sup.toFixed(decimals)}`
+        };
+      } else {
+        plan.conditional_scenarios.breakout = {
+          order_type: 'SELL_STOP',
+          entry_price: (sup * 0.999).toFixed(decimals),
+          stop_limit_price: (sup * 0.998).toFixed(decimals),
+          stop_loss: (res).toFixed(decimals),
+          take_profit_1: (sup * 0.99).toFixed(decimals),
+          explanation: `Vente sur cassure baissière sous le support ${sup.toFixed(decimals)}`
+        };
+        plan.conditional_scenarios.pullback = {
+          order_type: 'SELL_LIMIT',
+          entry_price: (res * 0.999).toFixed(decimals),
+          stop_loss: (res * 1.004).toFixed(decimals),
+          take_profit_1: (sup).toFixed(decimals),
+          explanation: `Vente sur rebond / résistance à ${res.toFixed(decimals)}`
+        };
+      }
     }
+  }
+
+  // Calcul précis des lots selon le capital et l'actif
+  const capVal = Number(inputs.account_capital) || 10000;
+  const riskPctVal = Number(ctx.riskPercent) || 0.5;
+  const riskCash = (capVal * riskPctVal) / 100;
+  const calcEntry = parsePrice(inputs.entry_price) ?? current;
+  const calcSL = parsePrice(inputs.stop_loss);
+
+  if (calcEntry && calcSL && calcEntry !== calcSL) {
+    const dist = Math.abs(calcEntry - calcSL);
+    const cleanSym = String(inputs.asset || '').toUpperCase().trim();
+    let calculatedLots = 0.01;
+
+    if (/XAU|GOLD|OR\b/i.test(cleanSym)) {
+      calculatedLots = riskCash / (dist * 100);
+    } else if (/EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF/i.test(cleanSym)) {
+      const isJpy = cleanSym.includes('JPY');
+      const pipSize = isJpy ? 0.01 : 0.0001;
+      const slPips = dist / pipSize;
+      calculatedLots = slPips > 0 ? riskCash / (slPips * 10) : 0.01;
+    } else {
+      calculatedLots = riskCash / dist;
+    }
+
+    const roundedLots = Math.max(0.01, Math.round(calculatedLots * 100) / 100);
+    inputs.recommended_lots = roundedLots.toFixed(2);
+    inputs.risk_amount_money = riskCash.toFixed(2);
   }
 
   if (current !== null && !inputs.current_price) inputs.current_price = String(current);
@@ -748,7 +802,7 @@ function applyConsensus(plan, primaryOcr, verifierResult) {
 
   if (p1 !== null && p2 !== null) {
     const diff = Math.abs(p1 - p2) / Math.max(Math.abs(p1), 1e-9);
-    if (diff > 0.003) {
+    if (diff > 0.01) {
       if (plan.verdict.action === 'BUY' || plan.verdict.action === 'SELL') {
         blockPlan(plan, 'WARNING_PARTIAL_DATA', `Les deux modèles ne lisent pas le même prix actuel (${p1} vs ${p2}) : lecture non fiable, trade annulé.`);
       }

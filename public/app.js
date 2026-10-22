@@ -766,16 +766,20 @@ function renderAnalysisResult(data) {
     if (detectedSymbolPill) detectedSymbolPill.classList.remove('hidden');
   }
 
-  // Détection & remplissage automatique du Capital / Solde du compte
-  const detectedCap = data.ocrFacts?.extracted_facts?.account_capital_or_balance_on_screen || inputs.account_capital;
-  const detectedCapNum = parsePriceNum(detectedCap);
+  // Détection & synchronisation automatique du Capital / Solde du compte
+  const userCapNum = parsePriceNum(document.getElementById('capitalInput')?.value);
+  const detectedCapNum = parsePriceNum(data.ocrFacts?.extracted_facts?.account_capital_or_balance_on_screen);
+  const planCapNum = parsePriceNum(inputs.account_capital);
+  const effectiveCap = userCapNum ?? detectedCapNum ?? planCapNum ?? 1000;
+
   const capitalInput = document.getElementById('capitalInput');
   const liveCapitalInput = document.getElementById('liveCapitalInput');
   const detectedCapitalPill = document.getElementById('detectedCapitalPill');
-  if (detectedCapNum !== null && detectedCapNum > 0) {
-    if (capitalInput) capitalInput.value = detectedCapNum;
-    if (liveCapitalInput) liveCapitalInput.value = detectedCapNum;
-    if (detectedCapitalPill) detectedCapitalPill.classList.remove('hidden');
+  if (capitalInput) capitalInput.value = effectiveCap;
+  if (liveCapitalInput) liveCapitalInput.value = effectiveCap;
+  if (detectedCapNum !== null && detectedCapNum > 0 && detectedCapitalPill) {
+    detectedCapitalPill.classList.remove('hidden');
+    detectedCapitalPill.textContent = `🤖 Capital lu : ${detectedCapNum} $`;
   }
 
   // Timeframe auto-remplie si vide
@@ -935,10 +939,21 @@ let currentRiskPercent = 0.5;
 function calculateLots(asset, entryPrice, slPrice, capital, riskPercent) {
   const entry = parsePriceNum(entryPrice);
   const sl = parsePriceNum(slPrice);
-  if (entry === null || sl === null || entry === sl) return null;
-  const cap = parseFloat(capital) || 10000;
+  const cap = parseFloat(capital) || 1000;
   const riskPct = parseFloat(riskPercent) || 0.5;
   const riskAmount = (cap * riskPct) / 100;
+
+  if (entry === null || sl === null || entry === sl) {
+    return {
+      assetType: 'Forex / CFD Standard',
+      lots: '0.01',
+      riskAmount: riskAmount.toFixed(2),
+      realRisk: riskAmount.toFixed(2),
+      isClamped: false,
+      distance: '0.00'
+    };
+  }
+
   const dist = Math.abs(entry - sl);
   if (dist <= 0) return null;
 
@@ -965,11 +980,16 @@ function calculateLots(asset, entryPrice, slPrice, capital, riskPercent) {
     lots = riskAmount / dist;
   }
 
+  const rawLots = lots;
   const rounded = Math.max(0.01, Math.round(lots * 100) / 100);
+  const realRisk = (0.01 * dist * (clean.includes('XAU') ? 100 : 10)).toFixed(2);
+
   return {
     assetType,
     lots: rounded.toFixed(2),
     riskAmount: riskAmount.toFixed(2),
+    realRisk,
+    isClamped: rawLots < 0.008,
     distance: dist.toFixed(2)
   };
 }
@@ -1064,22 +1084,26 @@ function updateMt5OrderSlip(data, activeOrderTypeOverride = null) {
   if (tpElem) tpElem.textContent = rawTP ? (rawTP2 ? `${rawTP} (TP1)` : rawTP) : '--';
 
   const liveCapInput = document.getElementById('liveCapitalInput');
-  const liveCap = liveCapInput ? parseFloat(liveCapInput.value) || 10000 : 10000;
+  const liveCap = liveCapInput ? parseFloat(liveCapInput.value) || 1000 : 1000;
   const lotCalc = calculateLots(sym, rawEntry, rawSL, liveCap, currentRiskPercent);
 
-  if (lotCalc && lotCalc.lots !== '0.00') {
+  if (lotCalc) {
     if (lotsElem) lotsElem.textContent = `${lotCalc.lots} Lot${parseFloat(lotCalc.lots) > 1 ? 's' : ''}`;
     if (assetTypeBadge) assetTypeBadge.textContent = `${lotCalc.assetType} · ${label}`;
     const lossMoney = lotCalc.riskAmount;
     const gainMoney = (parseFloat(lossMoney) * (plan.computed?.rr_tp1 || 1.8)).toFixed(2);
     if (liveRiskSummary) {
-      liveRiskSummary.innerHTML = `Perte max si SL : <strong style="color:#ef4444;">-${lossMoney} $</strong> · Gain attendu : <strong style="color:#10b981;">+${gainMoney} $</strong>`;
+      if (lotCalc.isClamped) {
+        liveRiskSummary.innerHTML = `⚠️ Capital modeste : lot min MT5 (0.01) = perte réelle si SL <strong style="color:#ef4444;">-${lotCalc.realRisk} $</strong> · Gain attendu : <strong style="color:#10b981;">+${gainMoney} $</strong>`;
+      } else {
+        liveRiskSummary.innerHTML = `Perte max si SL : <strong style="color:#ef4444;">-${lossMoney} $ (${currentRiskPercent}%)</strong> · Gain attendu : <strong style="color:#10b981;">+${gainMoney} $</strong>`;
+      }
     }
   } else {
-    if (lotsElem) lotsElem.textContent = '0.10 Lot (défaut)';
+    if (lotsElem) lotsElem.textContent = '0.01 Lot (min)';
     if (assetTypeBadge) assetTypeBadge.textContent = label;
     if (liveRiskSummary) {
-      liveRiskSummary.innerHTML = 'Perte max : <strong>50.00 $</strong> · Gain attendu : <strong>100.00 $</strong>';
+      liveRiskSummary.innerHTML = `Perte max : <strong>${((liveCap * currentRiskPercent) / 100).toFixed(2)} $</strong>`;
     }
   }
 
@@ -1140,7 +1164,17 @@ document.querySelectorAll('.risk-pill-btn').forEach(btn => {
   });
 });
 
-document.getElementById('liveCapitalInput')?.addEventListener('input', () => {
+document.getElementById('liveCapitalInput')?.addEventListener('input', e => {
+  const val = e.target.value;
+  const capIn = document.getElementById('capitalInput');
+  if (capIn) capIn.value = val;
+  if (currentAnalysisData) updateMt5OrderSlip(currentAnalysisData);
+});
+
+document.getElementById('capitalInput')?.addEventListener('input', e => {
+  const val = e.target.value;
+  const liveIn = document.getElementById('liveCapitalInput');
+  if (liveIn) liveIn.value = val;
   if (currentAnalysisData) updateMt5OrderSlip(currentAnalysisData);
 });
 

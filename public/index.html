@@ -441,11 +441,14 @@
               <div class="form-grid tg-form-grid">
                 <div class="field">
                   <label for="tgBotToken">Token Bot Telegram (via @BotFather)</label>
-                  <input type="password" id="tgBotToken" placeholder="Ex: 789123456:AAFlk3..." autocomplete="off" />
+                  <input type="text" id="tgBotToken" value="8831887593:AAF1NGcDsFedtw-aVWX0e3PC5sX-9lVNyh8" placeholder="Ex: 8831887593:AAF1..." autocomplete="off" />
                 </div>
                 <div class="field">
-                  <label for="tgChatId">Votre Chat ID Telegram</label>
-                  <input type="text" id="tgChatId" placeholder="Ex: 987654321" />
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <label for="tgChatId">Votre Chat ID Telegram</label>
+                    <button type="button" id="detectChatIdBtn" class="btn-link" style="font-size: 11px; padding: 0; color: #38bdf8;">🔍 Détecter auto</button>
+                  </div>
+                  <input type="text" id="tgChatId" placeholder="Ex: 987654321 ou cliquez Détecter auto" />
                 </div>
               </div>
 

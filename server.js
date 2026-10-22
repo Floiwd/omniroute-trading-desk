@@ -1065,6 +1065,42 @@ async function handleAnalyze(req, res) {
 // ---------------------------------------------------------------------------
 let latestPendingOrder = null;
 
+async function handleTelegramDetectChatId(req, res) {
+  const parsedUrl = new URL(req.url, 'http://localhost');
+  const token = parsedUrl.searchParams.get('token');
+  if (!token) return sendJson(res, 400, { error: 'Token manquant.' });
+
+  try {
+    const tgUrl = `https://api.telegram.org/bot${encodeURIComponent(token.trim())}/getUpdates`;
+    const tgRes = await fetch(tgUrl);
+    const tgData = await tgRes.json();
+    if (!tgData.ok) {
+      return sendJson(res, 400, { error: tgData.description || 'Erreur Telegram' });
+    }
+
+    const updates = tgData.result || [];
+    const lastMsg = updates.reverse().find(u => u.message?.chat?.id || u.channel_post?.chat?.id);
+    if (!lastMsg) {
+      return sendJson(res, 200, {
+        found: false,
+        message: "Aucun message reçu. Cliquez sur t.me/OmniTradeDesk_bot et appuyez sur 'Démarrer' (/start) d'abord."
+      });
+    }
+
+    const chat = lastMsg.message?.chat || lastMsg.channel_post?.chat;
+    const chatId = String(chat.id);
+    const firstName = chat.first_name || chat.title || 'Trader';
+
+    return sendJson(res, 200, {
+      found: true,
+      chatId: chatId,
+      name: firstName
+    });
+  } catch (err) {
+    return sendJson(res, 502, { error: err.message });
+  }
+}
+
 async function handleTelegramSend(req, res) {
   let body;
   try {
@@ -1187,6 +1223,7 @@ const requestHandler = async (req, res) => {
     try {
       if (req.method === 'GET' && url === '/api/status') return await handleStatus(res);
       if (req.method === 'POST' && url === '/api/analyze') return await handleAnalyze(req, res);
+      if (req.method === 'GET' && url === '/api/telegram/detect-chat-id') return await handleTelegramDetectChatId(req, res);
       if (req.method === 'POST' && url === '/api/telegram/send') return await handleTelegramSend(req, res);
       if (req.method === 'GET' && url === '/api/mt5/orders') return handleMt5GetOrder(res);
       if (req.method === 'POST' && url === '/api/mt5/confirm') return await handleMt5Confirm(req, res);

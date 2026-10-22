@@ -1273,6 +1273,38 @@ tgTokenInput?.addEventListener('input', e => localStorage.setItem(TG_TOKEN_KEY, 
 tgChatInput?.addEventListener('input', e => localStorage.setItem(TG_CHATID_KEY, e.target.value.trim()));
 tgAutoCheck?.addEventListener('change', e => localStorage.setItem(TG_AUTOSEND_KEY, e.target.checked));
 
+document.getElementById('detectChatIdBtn')?.addEventListener('click', async () => {
+  const token = tgTokenInput?.value.trim();
+  if (!token) {
+    alert("Veuillez d'abord renseigner le Token de votre Bot.");
+    return;
+  }
+  const btn = document.getElementById('detectChatIdBtn');
+  btn.textContent = '⏳ Recherche...';
+  try {
+    const res = await fetch(`/api/telegram/detect-chat-id?token=${encodeURIComponent(token)}`);
+    const data = await res.json();
+    if (data.found && data.chatId) {
+      if (tgChatInput) {
+        tgChatInput.value = data.chatId;
+        localStorage.setItem(TG_CHATID_KEY, data.chatId);
+      }
+      if (tgStatusMsg) {
+        tgStatusMsg.textContent = `✅ Chat ID détecté (${data.name}) : ${data.chatId}`;
+        tgStatusMsg.style.color = '#34d399';
+      }
+      btn.textContent = '✅ Détecté !';
+    } else {
+      alert(data.message || "Aucun message reçu. Cliquez sur t.me/OmniTradeDesk_bot sur Telegram et appuyez sur 'Démarrer' (/start) d'abord !");
+      btn.textContent = '🔍 Détecter auto';
+    }
+  } catch (err) {
+    alert(`Erreur : ${err.message}`);
+    btn.textContent = '🔍 Détecter auto';
+  }
+  setTimeout(() => (btn.textContent = '🔍 Détecter auto'), 2500);
+});
+
 document.getElementById('testTgBtn')?.addEventListener('click', async () => {
   const token = tgTokenInput?.value.trim();
   const chatId = tgChatInput?.value.trim();

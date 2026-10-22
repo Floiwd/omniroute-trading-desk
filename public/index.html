@@ -161,6 +161,20 @@
               <option value="2">2.00% (Agressif)</option>
             </select>
           </div>
+
+          <div class="field" style="grid-column: span 2;">
+            <label for="desiredOrderType">Type d'ordre souhaité sur MetaTrader 5 (Optionnel)</label>
+            <select id="desiredOrderType">
+              <option value="" selected>🤖 Auto — L'IA détecte si c'est Sell Stop, Sell Limit, etc.</option>
+              <option value="SELL_STOP">📉 Vente : SELL STOP (sur cassure de support)</option>
+              <option value="SELL_LIMIT">⤴️ Vente : SELL LIMIT (sur rebond vers résistance)</option>
+              <option value="SELL_STOP_LIMIT">🛡️ Vente : SELL STOP LIMIT (cassure avec prix limite anti-slippage)</option>
+              <option value="BUY_LIMIT">⤵️ Achat : BUY LIMIT (sur repli / support)</option>
+              <option value="BUY_STOP">🚀 Achat : BUY STOP (sur cassure de résistance)</option>
+              <option value="BUY_STOP_LIMIT">🛡️ Achat : BUY STOP LIMIT (cassure avec prix limite anti-slippage)</option>
+              <option value="MARKET">⚡ Au Marché (Exécution immédiate)</option>
+            </select>
+          </div>
         </div>
 
         <div class="field" style="margin-top: 12px;">
@@ -320,6 +334,20 @@
             <span class="mt5-asset-type-badge" id="mt5AssetTypeBadge">Forex / CFD</span>
           </div>
 
+          <!-- SÉLECTEUR RAPIDE POUR BASCULER ENTRE SELL STOP, SELL LIMIT, STOP LIMIT, ETC. -->
+          <div class="order-tabs-wrapper">
+            <span class="order-tabs-label">⚡ Basculer entre les types d'ordres MT5 :</span>
+            <div class="order-tabs-scroll" id="orderTabsContainer">
+              <button type="button" class="order-tab-btn" data-order="SELL_STOP">📉 SELL STOP</button>
+              <button type="button" class="order-tab-btn" data-order="SELL_LIMIT">⤴️ SELL LIMIT</button>
+              <button type="button" class="order-tab-btn" data-order="SELL_STOP_LIMIT">🛡️ SELL STOP LIMIT</button>
+              <button type="button" class="order-tab-btn" data-order="BUY_LIMIT">⤵️ BUY LIMIT</button>
+              <button type="button" class="order-tab-btn" data-order="BUY_STOP">🚀 BUY STOP</button>
+              <button type="button" class="order-tab-btn" data-order="BUY_STOP_LIMIT">🛡️ BUY STOP LIMIT</button>
+              <button type="button" class="order-tab-btn" data-order="MARKET">⚡ AU MARCHÉ</button>
+            </div>
+          </div>
+
           <!-- Les 6 champs exacts de la fenêtre d'ordre MT5 -->
           <div class="mt5-fields-grid">
             <div class="mt5-field">
@@ -347,10 +375,18 @@
             </div>
 
             <div class="mt5-field">
-              <span class="mt5-label">4. Prix (Entrée)</span>
+              <span class="mt5-label">4. Prix (Entrée / Déclenchement)</span>
               <div class="mt5-val-row">
                 <strong id="mt5Price" class="mt5-val">--</strong>
                 <button class="copy-btn-mini" data-target="mt5Price" title="Copier le prix">📋</button>
+              </div>
+            </div>
+
+            <div class="mt5-field mt5-field-stoplimit hidden" id="mt5StopLimitField">
+              <span class="mt5-label">4 bis. Prix Stop-Limit (MT5) 🛡️</span>
+              <div class="mt5-val-row">
+                <strong id="mt5StopLimitPrice" class="mt5-val">--</strong>
+                <button class="copy-btn-mini" data-target="mt5StopLimitPrice" title="Copier le prix Stop-Limit">📋</button>
               </div>
             </div>
 

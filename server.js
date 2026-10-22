@@ -230,7 +230,7 @@ const OCR_SCHEMA = `{
 const PLAN_SCHEMA = `{
   "verdict": {
     "action": "BUY | SELL | WAIT | NO_TRADE",
-    "order_type": "MARKET | BUY_LIMIT | SELL_LIMIT | BUY_STOP | SELL_STOP | AUCUN",
+    "order_type": "MARKET | BUY_LIMIT | SELL_LIMIT | BUY_STOP | SELL_STOP | BUY_STOP_LIMIT | SELL_STOP_LIMIT | AUCUN",
     "confidence_score": 0,
     "hallucination_guard_status": "SAFE_VERIFIED | WARNING_PARTIAL_DATA | BLOCKED_UNREADABLE_CHART",
     "headline_reason": "une phrase directe"
@@ -241,11 +241,29 @@ const PLAN_SCHEMA = `{
     "account_capital": "capital lu sur l'écran ou fourni (nombre seul)",
     "current_price": "nombre seul",
     "entry_price": "nombre seul (ou condition d'attente si WAIT/NO_TRADE)",
+    "stop_limit_price": "nombre seul ou null",
     "stop_loss": "nombre seul",
     "take_profit_1": "nombre seul",
     "take_profit_2": "nombre seul",
     "risk_reward_ratio": "1:x",
     "recommended_risk_pct": "x%"
+  },
+  "conditional_scenarios": {
+    "breakout": {
+      "order_type": "SELL_STOP ou BUY_STOP ou SELL_STOP_LIMIT ou BUY_STOP_LIMIT",
+      "entry_price": "nombre seul",
+      "stop_limit_price": "nombre seul ou null",
+      "stop_loss": "nombre seul",
+      "take_profit_1": "nombre seul",
+      "explanation": "ex: Vente sur cassure du support 4338.50"
+    },
+    "pullback": {
+      "order_type": "SELL_LIMIT ou BUY_LIMIT",
+      "entry_price": "nombre seul",
+      "stop_loss": "nombre seul",
+      "take_profit_1": "nombre seul",
+      "explanation": "ex: Vente sur rebond sous la résistance 4347.00"
+    }
   },
   "market_structure_facts": {
     "trend_bias": "HAUSSIER | BAISSIER | RANGE / NEUTRE | INCERTAIN",
@@ -263,7 +281,15 @@ const RISK_RULES = `PROTOCOLE ANTI-PERTE & ANTI-HALLUCINATION (STRICT) :
 3. Tous les niveaux (entrée, SL, TP) doivent se situer dans la plage de prix visible de l'axe, ou très proches.
 4. PAS DE TRADE FORCÉ : range haché, structure ambiguë ou R:R < 1:${MIN_RR} sur le TP principal ⇒ "WAIT" ou "NO_TRADE".
 5. COHÉRENCE : BUY ⇒ SL < Entrée < TP1 < TP2. SELL ⇒ SL > Entrée > TP1 > TP2.
-6. TYPE D'ORDRE : BUY sous le prix actuel = BUY_LIMIT, au-dessus = BUY_STOP ; SELL au-dessus = SELL_LIMIT, en dessous = SELL_STOP ; au prix actuel = MARKET.
+6. TYPES D'ORDRES METATRADER 5 (MT5) STRICTS & PÉDAGOGIQUES :
+   - SELL STOP : Vente sur cassure baissière SOUS le cours actuel (Entrée < Prix Actuel, SL > Entrée, TP < Entrée).
+   - SELL LIMIT : Vente sur rebond / résistance AU-DESSUS du cours actuel (Entrée > Prix Actuel, SL > Entrée, TP < Entrée).
+   - SELL STOP LIMIT : Vente sur cassure avec un Prix Stop sous le cours actuel ET un Prix Limite d'exécution anti-slippage.
+   - BUY LIMIT : Achat sur repli / support SOUS le cours actuel (Entrée < Prix Actuel, SL < Entrée, TP > Entrée).
+   - BUY STOP : Achat sur cassure haussière AU-DESSUS du cours actuel (Entrée > Prix Actuel, SL < Entrée, TP > Entrée).
+   - BUY STOP LIMIT : Achat sur cassure avec Prix Stop au-dessus du cours ET Prix Limite anti-slippage.
+   - MARKET : Exécution immédiate au cours actuel du marché.
+   - Si WAIT : Renseigne OBLIGATOIREMENT "conditional_scenarios" avec le plan en cas de cassure (SELL_STOP ou BUY_STOP) et le plan en cas de rebond (SELL_LIMIT ou BUY_LIMIT).
 7. Le SL se place derrière une structure visible (creux/sommet), pas à une distance arbitraire.
 8. Les champs de prix contiennent UNIQUEMENT un nombre avec le séparateur décimal "." (ex: 2657.20), sans devise ni texte.
 9. Si le contexte déclaré par le trader contredit le graphique, fais TOUJOURS confiance aux faits visuels du graphique.`;
@@ -273,6 +299,7 @@ function userContextBlock(ctx) {
 - Actif suggéré : ${ctx.symbol || 'lecture auto sur le graphique'}
 - Timeframe suggérée : ${ctx.timeframe || 'lecture auto sur le graphique'}
 - Capital suggéré : ${ctx.capital || 'lecture auto de la balance/solde si visible sur l écran, sinon 10000'} · Risque : ${ctx.riskPercent || '0.5'}%
+- Type d'ordre demandé : ${ctx.desiredOrderType || 'auto (recommandation IA)'}
 - Note / question : ${ctx.notes || 'aucune'}`;
 }
 
@@ -637,11 +664,20 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
           flags.push('FILTRE CERTITUDE : score < 50% → WAIT.');
         } else {
           // 4. Type d'ordre cohérent avec le prix actuel.
-          const tolerance = Math.max(span * 0.01, current * 0.0003);
-          const expected = Math.abs(entry - current) <= tolerance
-            ? 'MARKET'
-            : isBuy ? (entry < current ? 'BUY_LIMIT' : 'BUY_STOP') : (entry > current ? 'SELL_LIMIT' : 'SELL_STOP');
           const given = plan.verdict.order_type;
+          const tolerance = Math.max(span * 0.01, current * 0.0003);
+          const isStopLimit = given === 'SELL_STOP_LIMIT' || given === 'BUY_STOP_LIMIT' || ctx.desiredOrderType === 'SELL_STOP_LIMIT' || ctx.desiredOrderType === 'BUY_STOP_LIMIT';
+          let expected;
+          if (Math.abs(entry - current) <= tolerance) {
+            expected = 'MARKET';
+          } else if (isBuy) {
+            if (entry < current) expected = 'BUY_LIMIT';
+            else expected = isStopLimit ? 'BUY_STOP_LIMIT' : 'BUY_STOP';
+          } else {
+            if (entry > current) expected = 'SELL_LIMIT';
+            else expected = isStopLimit ? 'SELL_STOP_LIMIT' : 'SELL_STOP';
+          }
+
           if (given !== expected && !(expected !== 'MARKET' && given === 'MARKET' && Math.abs(entry - current) <= tolerance * 3)) {
             plan.verdict.order_type = expected;
             flags.push(`AJUSTÉ : type d'ordre corrigé ${given || '?'} → ${expected} (entrée ${entry} vs prix actuel ${current}).`);
@@ -658,8 +694,38 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
       }
     }
   } else {
-    plan.verdict.order_type = 'AUCUN';
+    if (!plan.verdict.order_type || plan.verdict.order_type === 'AUCUN') {
+      plan.verdict.order_type = 'AUCUN';
+    }
     inputs.recommended_risk_pct = '0%';
+  }
+
+  // Synthèse des scénarios conditionnels de repli et de cassure si non fournis
+  if (!plan.conditional_scenarios) plan.conditional_scenarios = {};
+  if (!plan.conditional_scenarios.breakout || !plan.conditional_scenarios.breakout.entry_price) {
+    const supports = Array.isArray(facts.key_visible_levels?.nearest_supports) ? facts.key_visible_levels.nearest_supports.map(parsePrice).filter(Boolean) : [];
+    const resistances = Array.isArray(facts.key_visible_levels?.nearest_resistances) ? facts.key_visible_levels.nearest_resistances.map(parsePrice).filter(Boolean) : [];
+    const sup = supports[0] || (current ? current * 0.995 : null);
+    const res = resistances[0] || (current ? current * 1.005 : null);
+    const decimals = Math.max(countDecimals(facts.current_price_on_chart), 2);
+
+    if (current && sup && res) {
+      plan.conditional_scenarios.breakout = {
+        order_type: 'SELL_STOP',
+        entry_price: (sup * 0.999).toFixed(decimals),
+        stop_limit_price: (sup * 0.998).toFixed(decimals),
+        stop_loss: (res).toFixed(decimals),
+        take_profit_1: (sup * 0.99).toFixed(decimals),
+        explanation: `Vente sur cassure baissière sous le support ${sup.toFixed(decimals)}`
+      };
+      plan.conditional_scenarios.pullback = {
+        order_type: 'SELL_LIMIT',
+        entry_price: (res * 0.999).toFixed(decimals),
+        stop_loss: (res * 1.004).toFixed(decimals),
+        take_profit_1: (sup).toFixed(decimals),
+        explanation: `Vente sur rebond / résistance à ${res.toFixed(decimals)}`
+      };
+    }
   }
 
   if (current !== null && !inputs.current_price) inputs.current_price = String(current);
@@ -919,6 +985,7 @@ async function handleAnalyze(req, res) {
     timeframe: String(timeframe).slice(0, 10),
     capital: String(capital).slice(0, 20),
     riskPercent: String(riskPercent).slice(0, 6),
+    desiredOrderType: String(payload.desiredOrderType || '').slice(0, 30),
     notes: String(notes).slice(0, 500),
     preferredModel: provider.name === 'omniroute' ? preferredModel : null
   };

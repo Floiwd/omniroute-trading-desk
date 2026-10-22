@@ -532,6 +532,7 @@ analyzeBtn.addEventListener('click', async () => {
       timeframe: document.getElementById('timeframeInput').value,
       capital: document.getElementById('capitalInput').value,
       riskPercent: document.getElementById('riskInput').value,
+      desiredOrderType: document.getElementById('desiredOrderType')?.value || '',
       notes: document.getElementById('notesInput').value.trim()
     };
 
@@ -591,6 +592,8 @@ const ORDER_TYPE_LABELS = {
   SELL_LIMIT: 'Sell Limit',
   BUY_STOP: 'Buy Stop',
   SELL_STOP: 'Sell Stop',
+  BUY_STOP_LIMIT: 'Buy Stop Limit',
+  SELL_STOP_LIMIT: 'Sell Stop Limit',
   AUCUN: 'Aucun'
 };
 
@@ -619,6 +622,18 @@ const ORDER_TYPE_DETAILS = {
       'Indiquez le Prix haut de vente, le Stop Loss et le Take Profit'
     ]
   },
+  SELL_STOP_LIMIT: {
+    label: 'SELL STOP LIMIT',
+    bannerClass: 'banner-sell-stop-limit',
+    tag: '🛡️ Vente sur cassure avec limite anti-slippage',
+    explanation: 'Un <strong>SELL STOP LIMIT</strong> combine un ordre Stop et un ordre Limite dans MT5. Dès que le marché chute et touche votre <strong>Prix Stop</strong> (seuil de cassure), un ordre <strong>Sell Limit</strong> est automatiquement placé au <strong>Prix Stop-Limit</strong> pour vous garantir un prix d\'exécution minimal et éviter le slippage violent.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Sell Stop Limit"',
+      'Indiquez le Prix Stop (déclenchement), le Prix Stop-Limit (limite vendeur), le SL et le TP'
+    ]
+  },
   BUY_LIMIT: {
     label: 'BUY LIMIT',
     bannerClass: 'banner-buy-limit',
@@ -641,6 +656,18 @@ const ORDER_TYPE_DETAILS = {
       'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
       'Sélectionnez : "Buy Stop"',
       'Indiquez le Prix de cassure, le Stop Loss et le Take Profit'
+    ]
+  },
+  BUY_STOP_LIMIT: {
+    label: 'BUY STOP LIMIT',
+    bannerClass: 'banner-buy-stop-limit',
+    tag: '🛡️ Achat sur cassure avec limite anti-slippage',
+    explanation: 'Un <strong>BUY STOP LIMIT</strong> combine un ordre Stop et un ordre Limite dans MT5. Dès que le marché monte et franchit votre <strong>Prix Stop</strong> (seuil de résistance), un ordre <strong>Buy Limit</strong> est automatiquement placé au <strong>Prix Stop-Limit</strong> pour vous prémunir du slippage.',
+    steps: [
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Buy Stop Limit"',
+      'Indiquez le Prix Stop (déclenchement), le Prix Stop-Limit (limite acheteur), le SL et le TP'
     ]
   },
   BUY_MARKET: {
@@ -668,13 +695,15 @@ const ORDER_TYPE_DETAILS = {
     ]
   },
   WAIT: {
-    label: 'AUCUN ORDRE (ATTENDRE)',
+    label: 'ATTENDRE (CASSURE OU REBOND)',
     bannerClass: 'banner-wait',
-    tag: '🛡️ Protection du Capital',
-    explanation: 'Aucune configuration à haute probabilité ou ratio risque/gain insuffisant. Restez à l\'écart du marché pour protéger votre capital.',
+    tag: '🛡️ Surveillance des seuils clés',
+    explanation: 'Le cours actuel est en consolidation. Sélectionnez l\'un des onglets ci-dessus pour préparer votre ordre MT5 : soit un <strong>SELL STOP</strong> sur cassure de support, soit un <strong>SELL LIMIT</strong> sur rebond sous résistance.',
     steps: [
-      'Ne placez aucun ordre sur MT5',
-      'Attendez la clôture de la bougie ou une nouvelle opportunité claire'
+      'Sur MT5 : Appuyez sur F9 (ou icône "+")',
+      'Dans Type, choisissez : "Ordre en attente" (Pending Order)',
+      'Sélectionnez : "Sell Stop" (si cassure) ou "Sell Limit" (si rebond)',
+      'Indiquez les niveaux correspondants calculés ci-dessus'
     ]
   }
 };
@@ -926,18 +955,45 @@ function calculateLots(asset, entryPrice, slPrice, capital, riskPercent) {
   };
 }
 
-function updateMt5OrderSlip(data) {
+let currentActiveOrderType = null;
+
+function updateMt5OrderSlip(data, activeOrderTypeOverride = null) {
   currentAnalysisData = data;
   const plan = data?.plan || {};
   const verdict = plan.verdict || {};
   const inputs = plan.essential_order_inputs || {};
+  const scenarios = plan.conditional_scenarios || {};
+  const structure = plan.market_structure_facts || {};
   const action = String(verdict.action || 'WAIT').toUpperCase();
-  const hasOrder = action === 'BUY' || action === 'SELL';
+
+  // Détermination du type d'ordre actif : override manuel par l'utilisateur ou détection IA
+  let oType = activeOrderTypeOverride || currentActiveOrderType || String(verdict.order_type || '').toUpperCase();
+  if (!oType || oType === 'AUCUN') {
+    if (scenarios.breakout?.order_type) oType = scenarios.breakout.order_type;
+    else if (scenarios.pullback?.order_type) oType = scenarios.pullback.order_type;
+    else oType = (structure.trend_bias === 'HAUSSIER' || action === 'BUY') ? 'BUY_LIMIT' : 'SELL_STOP';
+  }
+  currentActiveOrderType = oType;
+
+  // Mise à jour visuelle des onglets d'ordres
+  document.querySelectorAll('.order-tab-btn').forEach(btn => {
+    if (btn.getAttribute('data-order') === oType) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  const isBuy = oType.startsWith('BUY');
+  const isMarket = oType === 'MARKET';
+  const isStopLimit = oType.includes('STOP_LIMIT');
 
   const symElem = document.getElementById('mt5Symbol');
   const typeElem = document.getElementById('mt5Type');
   const lotsElem = document.getElementById('mt5Lots');
   const priceElem = document.getElementById('mt5Price');
+  const stopLimitField = document.getElementById('mt5StopLimitField');
+  const stopLimitPriceElem = document.getElementById('mt5StopLimitPrice');
   const slElem = document.getElementById('mt5SL');
   const tpElem = document.getElementById('mt5TP');
   const assetTypeBadge = document.getElementById('mt5AssetTypeBadge');
@@ -946,50 +1002,70 @@ function updateMt5OrderSlip(data) {
   const sym = inputs.asset || document.getElementById('symbolInput').value.trim() || 'XAUUSD';
   if (symElem) symElem.textContent = sym;
 
-  const oType = String(verdict.order_type || 'AUCUN').toUpperCase();
-  const rawEntry = extractPriceForCopy(inputs.entry_price) || '--';
-  const rawSL = extractPriceForCopy(inputs.stop_loss) || '--';
-  const rawTP = extractPriceForCopy(inputs.take_profit_1) || '--';
-  const rawTP2 = extractPriceForCopy(inputs.take_profit_2);
+  // Niveaux de prix spécifiques selon l'ordre choisi (Cassure, Rebond, Marché)
+  let rawEntry, rawSL, rawTP;
+  if (oType === 'SELL_STOP' && scenarios.breakout?.order_type === 'SELL_STOP') {
+    rawEntry = extractPriceForCopy(scenarios.breakout.entry_price);
+    rawSL = extractPriceForCopy(scenarios.breakout.stop_loss);
+    rawTP = extractPriceForCopy(scenarios.breakout.take_profit_1);
+  } else if (oType === 'SELL_LIMIT' && scenarios.pullback?.order_type === 'SELL_LIMIT') {
+    rawEntry = extractPriceForCopy(scenarios.pullback.entry_price);
+    rawSL = extractPriceForCopy(scenarios.pullback.stop_loss);
+    rawTP = extractPriceForCopy(scenarios.pullback.take_profit_1);
+  } else if (oType === 'BUY_LIMIT' && scenarios.pullback?.order_type === 'BUY_LIMIT') {
+    rawEntry = extractPriceForCopy(scenarios.pullback.entry_price);
+    rawSL = extractPriceForCopy(scenarios.pullback.stop_loss);
+    rawTP = extractPriceForCopy(scenarios.pullback.take_profit_1);
+  } else if (oType === 'BUY_STOP' && scenarios.breakout?.order_type === 'BUY_STOP') {
+    rawEntry = extractPriceForCopy(scenarios.breakout.entry_price);
+    rawSL = extractPriceForCopy(scenarios.breakout.stop_loss);
+    rawTP = extractPriceForCopy(scenarios.breakout.take_profit_1);
+  } else {
+    rawEntry = extractPriceForCopy(inputs.entry_price) || extractPriceForCopy(inputs.current_price);
+    rawSL = extractPriceForCopy(inputs.stop_loss);
+    rawTP = extractPriceForCopy(inputs.take_profit_1);
+  }
 
-  if (typeElem) typeElem.textContent = hasOrder ? ORDER_TYPE_LABELS[oType] || oType : 'AUCUN (ATTENDRE)';
-  if (priceElem) priceElem.textContent = hasOrder && oType !== 'MARKET' ? rawEntry : 'Exécution Marché';
-  if (slElem) slElem.textContent = hasOrder ? rawSL : 'N/A';
-  if (tpElem) tpElem.textContent = hasOrder ? (rawTP2 ? `${rawTP} (TP1)` : rawTP) : 'N/A';
+  // Gestion du Stop Limit (Prix Stop + Prix Limite)
+  if (isStopLimit) {
+    const entryNum = parsePriceNum(rawEntry) || 100;
+    const offset = entryNum * 0.0004;
+    const rawStopLimit = isBuy ? (entryNum + offset).toFixed(2) : (entryNum - offset).toFixed(2);
+    if (stopLimitField) stopLimitField.classList.remove('hidden');
+    if (stopLimitPriceElem) stopLimitPriceElem.textContent = rawStopLimit;
+  } else {
+    if (stopLimitField) stopLimitField.classList.add('hidden');
+  }
+
+  const label = ORDER_TYPE_LABELS[oType] || oType;
+  if (typeElem) typeElem.textContent = label;
+  if (priceElem) priceElem.textContent = isMarket ? 'Exécution Marché' : (rawEntry || '--');
+  if (slElem) slElem.textContent = rawSL || '--';
+  const rawTP2 = extractPriceForCopy(inputs.take_profit_2);
+  if (tpElem) tpElem.textContent = rawTP ? (rawTP2 ? `${rawTP} (TP1)` : rawTP) : '--';
 
   const liveCapInput = document.getElementById('liveCapitalInput');
   const liveCap = liveCapInput ? parseFloat(liveCapInput.value) || 10000 : 10000;
-  const lotCalc = hasOrder ? calculateLots(sym, rawEntry, rawSL, liveCap, currentRiskPercent) : null;
+  const lotCalc = calculateLots(sym, rawEntry, rawSL, liveCap, currentRiskPercent);
 
-  if (lotCalc) {
+  if (lotCalc && lotCalc.lots !== '0.00') {
     if (lotsElem) lotsElem.textContent = `${lotCalc.lots} Lot${parseFloat(lotCalc.lots) > 1 ? 's' : ''}`;
-    if (assetTypeBadge) assetTypeBadge.textContent = lotCalc.assetType;
+    if (assetTypeBadge) assetTypeBadge.textContent = `${lotCalc.assetType} · ${label}`;
     const lossMoney = lotCalc.riskAmount;
     const gainMoney = (parseFloat(lossMoney) * (plan.computed?.rr_tp1 || 1.8)).toFixed(2);
     if (liveRiskSummary) {
       liveRiskSummary.innerHTML = `Perte max si SL : <strong style="color:#ef4444;">-${lossMoney} $</strong> · Gain attendu : <strong style="color:#10b981;">+${gainMoney} $</strong>`;
     }
   } else {
-    if (lotsElem) lotsElem.textContent = '0.00 Lot';
-    if (assetTypeBadge) assetTypeBadge.textContent = 'Pas d’ordre actif';
+    if (lotsElem) lotsElem.textContent = '0.10 Lot (défaut)';
+    if (assetTypeBadge) assetTypeBadge.textContent = label;
     if (liveRiskSummary) {
-      liveRiskSummary.innerHTML = 'Perte max : <strong>0.00 $</strong> · Gain attendu : <strong>0.00 $</strong>';
+      liveRiskSummary.innerHTML = 'Perte max : <strong>50.00 $</strong> · Gain attendu : <strong>100.00 $</strong>';
     }
   }
 
-  // Résolution et affichage du guide pédagogique pour le type d'ordre (SELL STOP, BUY LIMIT...)
-  let orderKey = 'WAIT';
-  if (hasOrder) {
-    if (oType === 'MARKET') {
-      orderKey = action === 'BUY' ? 'BUY_MARKET' : 'SELL_MARKET';
-    } else if (ORDER_TYPE_DETAILS[oType]) {
-      orderKey = oType;
-    } else {
-      orderKey = action === 'BUY' ? 'BUY_LIMIT' : 'SELL_LIMIT';
-    }
-  }
-  const details = ORDER_TYPE_DETAILS[orderKey] || ORDER_TYPE_DETAILS.WAIT;
-
+  // Guide pédagogique
+  const details = ORDER_TYPE_DETAILS[oType] || ORDER_TYPE_DETAILS.WAIT;
   const banner = document.getElementById('orderTypeBanner');
   const badgePill = document.getElementById('orderTypeBadgePill');
   const dirTag = document.getElementById('orderDirectionTag');
@@ -1015,19 +1091,25 @@ function updateMt5OrderSlip(data) {
   const quickLots = document.getElementById('mobileQuickLots');
 
   if (quickBar) {
-    if (hasOrder) {
-      quickBar.classList.remove('hidden');
-      if (quickAction) {
-        quickAction.textContent = details.label;
-        quickAction.style.background = action === 'BUY' ? '#10b981' : '#ef4444';
-      }
-      if (quickSym) quickSym.textContent = sym;
-      if (quickLots) quickLots.textContent = lotCalc ? `${lotCalc.lots} lots` : '-- lots';
-    } else {
-      quickBar.classList.add('hidden');
+    quickBar.classList.remove('hidden');
+    if (quickAction) {
+      quickAction.textContent = details.label;
+      quickAction.style.background = isBuy ? '#10b981' : '#ef4444';
     }
+    if (quickSym) quickSym.textContent = sym;
+    if (quickLots) quickLots.textContent = lotCalc ? `${lotCalc.lots} lots` : '0.10 lots';
   }
 }
+
+// Clics sur les onglets de type d'ordre MT5 (SELL STOP, SELL LIMIT, etc.)
+document.querySelectorAll('.order-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const oType = btn.getAttribute('data-order');
+    if (currentAnalysisData) {
+      updateMt5OrderSlip(currentAnalysisData, oType);
+    }
+  });
+});
 
 // Boutons de risque rapide (0.25%, 0.50%, 1.00%, 2.00%)
 document.querySelectorAll('.risk-pill-btn').forEach(btn => {
@@ -1067,23 +1149,30 @@ async function handleCopyFullMt5Ticket(triggerBtn) {
   const type = document.getElementById('mt5Type')?.textContent || '--';
   const lots = document.getElementById('mt5Lots')?.textContent || '--';
   const price = document.getElementById('mt5Price')?.textContent || '--';
+  const stopLimitElem = document.getElementById('mt5StopLimitPrice');
+  const hasStopLimit = !document.getElementById('mt5StopLimitField')?.classList.contains('hidden');
   const sl = document.getElementById('mt5SL')?.textContent || '--';
   const tp = document.getElementById('mt5TP')?.textContent || '--';
   const rr = document.getElementById('outRR')?.textContent || '--';
 
-  const text = [
+  const textLines = [
     `=== FICHE ORDRE METATRADER 5 ===`,
     `Symbole : ${sym}`,
     `Type d'ordre : ${type}`,
     `Volume (Lots) : ${lots}`,
-    `Prix d'Entrée : ${price}`,
+    `Prix d'Entrée / Déclenchement : ${price}`
+  ];
+  if (hasStopLimit) {
+    textLines.push(`Prix Stop-Limit (MT5) : ${stopLimitElem?.textContent || '--'}`);
+  }
+  textLines.push(
     `Stop Loss : ${sl}`,
     `Take Profit : ${tp}`,
     `Ratio Risque/Gain : ${rr}`,
     `Généré automatiquement par OmniRoute Trading Desk`
-  ].join('\n');
+  );
 
-  await copyText(text);
+  await copyText(textLines.join('\n'));
   if (triggerBtn) {
     const originalText = triggerBtn.textContent;
     triggerBtn.textContent = '✅ Copié !';

@@ -761,13 +761,16 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-// CORS : uniquement la même origine (empêche un site tiers d'utiliser votre clé via localhost).
+// CORS : autorise la même origine, le domaine Vercel et localhost
 function isAllowedOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
   try {
     const o = new URL(origin);
-    return o.host === req.headers.host || ['localhost', '127.0.0.1'].includes(o.hostname) && o.port === String(PORT);
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    return o.host === host ||
+      o.hostname.endsWith('.vercel.app') ||
+      (['localhost', '127.0.0.1'].includes(o.hostname) && (o.port === String(PORT) || !o.port));
   } catch {
     return false;
   }
@@ -911,7 +914,12 @@ function serveStatic(req, res) {
 }
 
 const requestHandler = async (req, res) => {
-  const url = (req.url || '/').split('?')[0];
+  const parsedUrl = new URL(req.url || '/', 'http://localhost');
+  const apiParam = parsedUrl.searchParams.get('apiPath');
+  let url = apiParam ? `/api/${apiParam}` : parsedUrl.pathname;
+  if (!url.startsWith('/api/') && req.headers['x-matched-path']?.startsWith('/api/')) {
+    url = req.headers['x-matched-path'];
+  }
 
   if (url.startsWith('/api/')) {
     if (!isAllowedOrigin(req)) return sendJson(res, 403, { error: 'Origine non autorisée.' });

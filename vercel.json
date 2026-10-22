@@ -4,7 +4,7 @@
     "server.js": { "maxDuration": 60 }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/server.js" },
+    { "source": "/api/(.*)", "destination": "/server.js?apiPath=$1" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }

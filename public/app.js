@@ -440,7 +440,11 @@ analyzeBtn.addEventListener('click', async () => {
     clearInterval(progressInterval);
     loadingState.classList.add('hidden');
     errorState.classList.remove('hidden');
-    errorMessage.textContent = err.message;
+    let msg = err.message || 'Erreur inconnue';
+    if (msg.includes('denied access') || msg.includes('PERMISSION_DENIED')) {
+      msg = "🛑 Accès refusé par Google sur ce projet : « Your project has been denied access ».\n\n👉 Solution en 30 secondes :\n1. Rendez-vous sur https://aistudio.google.com/apikey\n2. Cliquez sur « Créer une clé API » puis choisissez « Créer dans un NOUVEAU projet » (gratuit et sans restriction).\n3. Collez la nouvelle clé dans « ⚙️ Clé API & mode » en haut.\n\n(Ou activez la facturation sur votre projet Google Cloud actuel).";
+    }
+    errorMessage.textContent = msg;
   } finally {
     analyzeBtn.disabled = false;
   }

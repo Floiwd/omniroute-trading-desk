@@ -403,6 +403,13 @@ kbd {
   background: var(--sell-bg);
 }
 
+.error-state p {
+  color: #fca5a5;
+  white-space: pre-line;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
 /* Verdict Banner */
 .verdict-card {
   border-radius: 14px;

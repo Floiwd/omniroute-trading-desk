@@ -211,8 +211,9 @@ const OCR_SCHEMA = `{
     "missing_or_blurry_elements": []
   },
   "extracted_facts": {
-    "symbol_on_chart": "symbole lu ou ILLISIBLE",
-    "timeframe_on_chart": "unité de temps lue ou ILLISIBLE",
+    "symbol_on_chart": "symbole lu sur le graphique (ex: BTCUSD, XAUUSD, EURUSD, US30) ou ILLISIBLE",
+    "timeframe_on_chart": "unité de temps lue (ex: M1, M5, M15, H1, H4, D1) ou ILLISIBLE",
+    "account_capital_or_balance_on_screen": "solde / balance / equity lu sur le terminal ou l'interface MT5/TradingView (nombre seul, ex: 430 ou 10000) ou NON_VISIBLE",
     "current_price_on_chart": "prix actuel encadré sur l'axe (nombre seul) ou ILLISIBLE",
     "visible_price_range_high": "plus haute graduation lisible de l'axe (nombre seul) ou ILLISIBLE",
     "visible_price_range_low": "plus basse graduation lisible de l'axe (nombre seul) ou ILLISIBLE",
@@ -235,8 +236,9 @@ const PLAN_SCHEMA = `{
     "headline_reason": "une phrase directe"
   },
   "essential_order_inputs": {
-    "asset": "actif vérifié",
+    "asset": "symbole exact lu sur le graphique (ex: BTCUSD, XAUUSD)",
     "timeframe": "unité de temps vérifiée",
+    "account_capital": "capital lu sur l'écran ou fourni (nombre seul)",
     "current_price": "nombre seul",
     "entry_price": "nombre seul (ou condition d'attente si WAIT/NO_TRADE)",
     "stop_loss": "nombre seul",
@@ -256,21 +258,22 @@ const PLAN_SCHEMA = `{
 }`;
 
 const RISK_RULES = `PROTOCOLE ANTI-PERTE & ANTI-HALLUCINATION (STRICT) :
-1. N'INVENTE AUCUN PRIX. Lis l'axe vertical des prix caractère par caractère. Si l'axe est illisible ou le prix actuel introuvable : action "NO_TRADE" et niveaux "ILLISIBLE".
-2. Tous les niveaux (entrée, SL, TP) doivent se situer dans la plage de prix visible de l'axe, ou très proches.
-3. PAS DE TRADE FORCÉ : range haché, structure ambiguë ou R:R < 1:${MIN_RR} sur le TP principal ⇒ "WAIT" ou "NO_TRADE".
-4. COHÉRENCE : BUY ⇒ SL < Entrée < TP1 < TP2. SELL ⇒ SL > Entrée > TP1 > TP2.
-5. TYPE D'ORDRE : BUY sous le prix actuel = BUY_LIMIT, au-dessus = BUY_STOP ; SELL au-dessus = SELL_LIMIT, en dessous = SELL_STOP ; au prix actuel = MARKET.
-6. Le SL se place derrière une structure visible (creux/sommet), pas à une distance arbitraire.
-7. Les champs de prix contiennent UNIQUEMENT un nombre avec le séparateur décimal "." (ex: 2657.20), sans devise ni texte.
-8. Si le contexte déclaré par le trader contredit le graphique, fais confiance au graphique et signale-le.`;
+1. LECTURE AUTOMATIQUE PRIORITAIRE : Lis en priorité l'actif/symbole directement sur le graphique (ex: BTCUSD, XAUUSD), et cherche si le solde/balance (Balance/Equity/Solde) apparaît dans le terminal en bas ou en haut de l'écran.
+2. N'INVENTE AUCUN PRIX. Lis l'axe vertical des prix caractère par caractère. Si l'axe est illisible ou le prix actuel introuvable : action "NO_TRADE" et niveaux "ILLISIBLE".
+3. Tous les niveaux (entrée, SL, TP) doivent se situer dans la plage de prix visible de l'axe, ou très proches.
+4. PAS DE TRADE FORCÉ : range haché, structure ambiguë ou R:R < 1:${MIN_RR} sur le TP principal ⇒ "WAIT" ou "NO_TRADE".
+5. COHÉRENCE : BUY ⇒ SL < Entrée < TP1 < TP2. SELL ⇒ SL > Entrée > TP1 > TP2.
+6. TYPE D'ORDRE : BUY sous le prix actuel = BUY_LIMIT, au-dessus = BUY_STOP ; SELL au-dessus = SELL_LIMIT, en dessous = SELL_STOP ; au prix actuel = MARKET.
+7. Le SL se place derrière une structure visible (creux/sommet), pas à une distance arbitraire.
+8. Les champs de prix contiennent UNIQUEMENT un nombre avec le séparateur décimal "." (ex: 2657.20), sans devise ni texte.
+9. Si le contexte déclaré par le trader contredit le graphique, fais TOUJOURS confiance aux faits visuels du graphique.`;
 
 function userContextBlock(ctx) {
-  return `CONTEXTE DÉCLARÉ PAR LE TRADER (peut être vide — ne jamais le substituer à la lecture du graphique) :
-- Actif : ${ctx.symbol || 'non précisé'}
-- Timeframe : ${ctx.timeframe || 'non précisé'}
-- Capital : ${ctx.capital || 'non précisé'} · Risque max par trade : ${ctx.riskPercent || '1'}%
-- Note / biais : ${ctx.notes || 'aucune'}`;
+  return `CONTEXTE (indication optionnelle — la lecture directe sur l'image fait foi) :
+- Actif suggéré : ${ctx.symbol || 'lecture auto sur le graphique'}
+- Timeframe suggérée : ${ctx.timeframe || 'lecture auto sur le graphique'}
+- Capital suggéré : ${ctx.capital || 'lecture auto de la balance/solde si visible sur l écran, sinon 10000'} · Risque : ${ctx.riskPercent || '0.5'}%
+- Note / question : ${ctx.notes || 'aucune'}`;
 }
 
 function buildSinglePassPrompt(ctx) {
@@ -533,6 +536,24 @@ function validateAndSanitizePlan(ocrInput, planInput, ctx = {}) {
   const axisLow = parsePrice(facts.visible_price_range_low);
 
   if (!plan.verdict.hallucination_guard_status) plan.verdict.hallucination_guard_status = 'SAFE_VERIFIED';
+
+  // Détection prioritaire de l'actif lu directement sur le graphique
+  const ocrSymbol = (facts.symbol_on_chart && facts.symbol_on_chart !== 'ILLISIBLE') ? facts.symbol_on_chart.trim() : null;
+  const ctxSymbol = (ctx.symbol || '').trim();
+  const finalSymbol = ocrSymbol || ctxSymbol || inputs.asset || 'ACTIF';
+  inputs.asset = finalSymbol;
+  if (ocrSymbol) {
+    flags.push(`ACTIF DÉTECTÉ SUR LE GRAPHIQUE : ${ocrSymbol}`);
+  }
+
+  // Détection automatique du solde / capital sur l'écran
+  const detectedCap = parsePrice(facts.account_capital_or_balance_on_screen);
+  const userCap = parsePrice(ctx.capital);
+  const finalCap = detectedCap ?? userCap ?? 10000;
+  inputs.account_capital = finalCap;
+  if (detectedCap !== null) {
+    flags.push(`CAPITAL DÉTECTÉ SUR L'ÉCRAN : ${detectedCap} $ / €`);
+  }
 
   // 1. Image exploitable ?
   if (iq.is_trading_chart === false) {

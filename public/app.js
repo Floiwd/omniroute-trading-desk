@@ -597,6 +597,35 @@ function renderAnalysisResult(data) {
   document.getElementById('outCurrentPrice').textContent = inputs.current_price || '--';
   document.getElementById('outTrendBias').textContent = structure.trend_bias || '--';
 
+  // Détection & remplissage automatique de l'Actif sur le formulaire
+  const ocrSymbol = data.ocrFacts?.extracted_facts?.symbol_on_chart || inputs.asset;
+  const symbolInput = document.getElementById('symbolInput');
+  const detectedSymbolPill = document.getElementById('detectedSymbolPill');
+  if (ocrSymbol && ocrSymbol !== 'ILLISIBLE' && ocrSymbol !== 'ACTIF') {
+    if (symbolInput) symbolInput.value = ocrSymbol;
+    if (detectedSymbolPill) detectedSymbolPill.classList.remove('hidden');
+  }
+
+  // Détection & remplissage automatique du Capital / Solde du compte
+  const detectedCap = data.ocrFacts?.extracted_facts?.account_capital_or_balance_on_screen || inputs.account_capital;
+  const detectedCapNum = parsePriceNum(detectedCap);
+  const capitalInput = document.getElementById('capitalInput');
+  const liveCapitalInput = document.getElementById('liveCapitalInput');
+  const detectedCapitalPill = document.getElementById('detectedCapitalPill');
+  if (detectedCapNum !== null && detectedCapNum > 0) {
+    if (capitalInput) capitalInput.value = detectedCapNum;
+    if (liveCapitalInput) liveCapitalInput.value = detectedCapNum;
+    if (detectedCapitalPill) detectedCapitalPill.classList.remove('hidden');
+  }
+
+  // Timeframe auto-remplie si vide
+  const ocrTf = data.ocrFacts?.extracted_facts?.timeframe_on_chart || inputs.timeframe;
+  const tfInput = document.getElementById('timeframeInput');
+  if (ocrTf && ocrTf !== 'ILLISIBLE' && tfInput && !tfInput.value) {
+    const matchingOption = [...tfInput.options].find(o => o.value.toLowerCase() === ocrTf.toLowerCase());
+    if (matchingOption) tfInput.value = matchingOption.value;
+  }
+
   document.getElementById('outEntry').textContent = inputs.entry_price || '--';
   document.getElementById('outSL').textContent = inputs.stop_loss || '--';
   document.getElementById('outTP1').textContent = inputs.take_profit_1 || '--';
@@ -605,13 +634,13 @@ function renderAnalysisResult(data) {
   document.getElementById('outRR').textContent = inputs.risk_reward_ratio || inputs.calculated_rr_tp1 || '--';
   document.getElementById('outRiskPct').textContent = inputs.recommended_risk_pct || '--';
 
-  // Calcul perte max en devise (uniquement si un ordre est réellement recommandé)
-  const capital = parseFloat(document.getElementById('capitalInput').value);
+  // Calcul perte max en devise (avec capital auto-détecté ou saisi)
+  const currentCapVal = parseFloat(document.getElementById('capitalInput')?.value) || inputs.account_capital || 10000;
   const riskPct = parseFloat(String(inputs.recommended_risk_pct || '').replace(',', '.')) || parseFloat(document.getElementById('riskInput').value);
   const hasOrder = action === 'BUY' || action === 'SELL';
   let maxLossVal = '0.00';
-  if (!isNaN(capital) && !isNaN(riskPct) && hasOrder) {
-    maxLossVal = ((capital * riskPct) / 100).toFixed(2);
+  if (!isNaN(currentCapVal) && !isNaN(riskPct) && hasOrder) {
+    maxLossVal = ((currentCapVal * riskPct) / 100).toFixed(2);
     document.getElementById('outMaxLossMoney').textContent = `${maxLossVal} $ / € (pour ${riskPct}%)`;
   } else {
     document.getElementById('outMaxLossMoney').textContent = '0.00 (Aucun ordre actif)';

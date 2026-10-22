@@ -106,8 +106,11 @@
 
         <div class="form-grid">
           <div class="field">
-            <label for="symbolInput">Actif / Paire</label>
-            <input type="text" id="symbolInput" placeholder="Ex: XAUUSD, BTCUSDT, EURUSD..." />
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <label for="symbolInput">Actif / Paire</label>
+              <span id="detectedSymbolPill" class="auto-detected-pill hidden">🤖 Auto-détecté</span>
+            </div>
+            <input type="text" id="symbolInput" placeholder="Auto-détecté sur l'image (ou forcer ici)" />
           </div>
           <div class="field">
             <label for="timeframeInput">Unité de temps (Timeframe)</label>
@@ -123,8 +126,11 @@
             </select>
           </div>
           <div class="field">
-            <label for="capitalInput">Capital du compte ($ / €)</label>
-            <input type="number" id="capitalInput" placeholder="Ex: 10000" value="10000" />
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <label for="capitalInput">Capital du compte ($ / €)</label>
+              <span id="detectedCapitalPill" class="auto-detected-pill hidden">🤖 Détecté sur l'écran</span>
+            </div>
+            <input type="number" id="capitalInput" placeholder="Auto-détecté (Balance/Solde) ou forcer" />
           </div>
           <div class="field">
             <label for="riskInput">Risque max autorisé (%)</label>

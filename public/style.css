@@ -315,6 +315,70 @@ kbd {
   border-radius: 4px;
 }
 
+/* Visibilité responsive générale */
+.desktop-only {
+  display: inline;
+}
+.mobile-only {
+  display: none !important;
+}
+
+/* Accordéon de contexte (Paramètres avancés) */
+.context-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  padding: 2px 0;
+}
+.context-details summary::-webkit-details-marker {
+  display: none;
+}
+.context-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.context-summary-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.context-summary-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.context-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.context-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.summary-arrow {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+}
+.context-details[open] .summary-arrow {
+  transform: rotate(180deg);
+}
+.context-body {
+  margin-top: 14px;
+}
+.upload-cta-wrap {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* Form controls */
 .form-grid {
   display: grid;
@@ -1659,6 +1723,20 @@ kbd {
     padding-bottom: 105px; /* Espace généreux pour que la barre flottante ne masque rien */
   }
 
+  /* Masquer l'état vide informatif de bureau sur smartphone pour un écran propre et direct */
+  #emptyState {
+    display: none !important;
+  }
+
+  .desktop-only,
+  .desktop-only-btn {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: inline !important;
+  }
+
   /* Header compact 1 seule ligne */
   .topbar {
     padding: 8px 12px;
@@ -1768,6 +1846,74 @@ kbd {
     font-size: 34px;
   }
 
+  .upload-cta-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .btn-mobile-upload {
+    width: 100%;
+    min-height: 52px;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  }
+
+  .btn-mobile-demo {
+    font-size: 13px;
+    padding: 10px;
+    color: #94a3b8;
+  }
+
+  .btn-quick-analyze {
+    width: 100%;
+    min-height: 52px;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 12px;
+    margin-top: 12px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+  }
+
+  /* Accordéon contextuel sur mobile : fermé par défaut, élégant et compact */
+  .context-card {
+    padding: 12px 14px;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .context-details summary {
+    padding: 4px 0;
+  }
+
+  .context-title {
+    font-size: 14px;
+  }
+
+  .context-subtitle {
+    font-size: 11px;
+  }
+
+  .context-body {
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 10px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
   /* Grille MT5 sur mobile : boutons de copie larges pour le pouce */
   .mt5-fields-grid {
     grid-template-columns: 1fr;
@@ -1872,5 +2018,22 @@ kbd {
   /* Masquer la barre mobile sur grands écrans */
   .mobile-quick-bar {
     display: none !important;
+  }
+
+  .mobile-only {
+    display: none !important;
+  }
+
+  .desktop-only {
+    display: inline;
+  }
+
+  /* Sur desktop, le résumé du contexte reste ouvert et ressemble à un en-tête naturel */
+  .context-details summary {
+    cursor: default;
+  }
+
+  .summary-arrow {
+    display: none;
   }
 }

@@ -487,7 +487,7 @@ analyzeBtn.addEventListener('click', async () => {
     quickBtn.disabled = true;
     quickBtn.textContent = '⏳ Analyse en cours...';
   }
-  loadingState.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  loadingState.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Barre de progression calée sur la durée typique du mode choisi
   const progressBar = document.getElementById('analysisProgressBar');
@@ -575,7 +575,7 @@ analyzeBtn.addEventListener('click', async () => {
     const quickBtn = document.getElementById('quickAnalyzeBtn');
     if (quickBtn) {
       quickBtn.disabled = false;
-      quickBtn.textContent = '🔍 Analyser ce graphique (Mode Zéro Hallucination)';
+      quickBtn.textContent = '🚀 Analyser ce graphique';
     }
   }
 });
@@ -1522,6 +1522,12 @@ document.getElementById('copyTicketBtn')?.addEventListener('click', async () => 
   btn.textContent = '✅ Ticket copié !';
   setTimeout(() => (btn.textContent = '📋 Copier le ticket'), 1500);
 });
+
+// Replier par défaut les paramètres avancés sur smartphone pour un écran direct et fluide
+if (window.innerWidth <= 768) {
+  const cd = document.getElementById('contextDetails');
+  if (cd) cd.open = false;
+}
 
 checkOmniRouteStatus();
 renderHistory();

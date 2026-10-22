@@ -43,3 +43,21 @@ test('GET / renvoie la page index.html', async () => {
   const html = await res.text();
   assert.match(html, /OmniRoute Trading Desk/i);
 });
+
+test('POST /api/telegram/send valide les champs requis', async () => {
+  const res = await fetch(`http://127.0.0.1:${port}/api/telegram/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'test' })
+  });
+  assert.strictEqual(res.status, 400);
+  const data = await res.json();
+  assert.match(data.error, /botToken, chatId et message requis/i);
+});
+
+test('GET /api/mt5/orders renvoie l’état de la passerelle MT5', async () => {
+  const res = await fetch(`http://127.0.0.1:${port}/api/mt5/orders`);
+  assert.strictEqual(res.status, 200);
+  const data = await res.json();
+  assert.strictEqual(typeof data.has_order, 'boolean');
+});

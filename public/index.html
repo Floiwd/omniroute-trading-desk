@@ -415,12 +415,50 @@
 
           <p id="outMt5Instruction" class="mt5-instruction-box">--</p>
 
-          <!-- Boutons d'export rapide multi-plateforme -->
+          <!-- Boutons d'action rapide multi-plateforme -->
           <div class="mt5-export-bar">
             <button type="button" id="copyAllMt5Btn" class="btn-export-primary">📋 Copier Fiche Complète MT5</button>
-            <button type="button" id="copyTelegramBtn" class="btn-export-secondary">💬 Format Telegram / Discord</button>
-            <button type="button" id="copyPineBtn" class="btn-export-secondary">📊 Pine Script (TradingView)</button>
+            <button type="button" id="sendTelegramBtn" class="btn-export-telegram">🤖 Envoyer au Bot Telegram / MT5</button>
+            <a href="/OmniRoute_MT5_EA.mq5" download class="btn-export-secondary" style="text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">📥 Télécharger l'EA MT5 (.mq5)</a>
           </div>
+
+          <!-- PANNEAU CONFIGURATION DU BOT TELEGRAM & PASSERELLE MT5 (100% GRATUIT) -->
+          <details id="telegramDrawer" class="telegram-drawer">
+            <summary class="telegram-summary">
+              <span>🤖 Paramètres du Bot Telegram &amp; Auto-Trade MT5 (100% Gratuit)</span>
+              <span class="tg-arrow">▾</span>
+            </summary>
+            <div class="telegram-config-body">
+              <div class="tg-steps-guide">
+                <strong>Comment connecter votre Bot Telegram gratuitement en 1 minute :</strong>
+                <ol>
+                  <li>Sur Telegram, cherchez <code>@BotFather</code> et envoyez <code>/newbot</code> pour créer votre bot gratuit.</li>
+                  <li>Copiez le <strong>Token</strong> reçu (ex: <code>123456789:ABCdef...</code>) et collez-le ci-dessous.</li>
+                  <li>Envoyez un message <code>/start</code> à votre bot, puis cherchez <code>@userinfobot</code> pour copier votre <strong>Chat ID</strong>.</li>
+                </ol>
+              </div>
+
+              <div class="form-grid tg-form-grid">
+                <div class="field">
+                  <label for="tgBotToken">Token Bot Telegram (via @BotFather)</label>
+                  <input type="password" id="tgBotToken" placeholder="Ex: 789123456:AAFlk3..." autocomplete="off" />
+                </div>
+                <div class="field">
+                  <label for="tgChatId">Votre Chat ID Telegram</label>
+                  <input type="text" id="tgChatId" placeholder="Ex: 987654321" />
+                </div>
+              </div>
+
+              <div class="tg-actions-row">
+                <button type="button" id="testTgBtn" class="btn-secondary btn-small">⚡ Tester la connexion (Ping)</button>
+                <label class="tg-auto-checkbox">
+                  <input type="checkbox" id="tgAutoSendCheck" />
+                  <span>Envoyer automatiquement après chaque analyse</span>
+                </label>
+                <span id="tgStatusMsg" class="tg-status-text"></span>
+              </div>
+            </div>
+          </details>
         </div>
 
         <!-- INVALIDATION & CHECKLIST AVANT DE CLIQUER -->

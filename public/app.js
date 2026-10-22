@@ -880,6 +880,11 @@ function renderAnalysisResult(data) {
   setTimeout(() => {
     resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 120);
+
+  // 6. Envoi automatique vers le Bot Telegram & MT5 si l'option est activée
+  if (tgAutoCheck?.checked) {
+    setTimeout(() => sendCurrentTradeToTelegram(true), 400);
+  }
 }
 
 function fillList(id, items) {
@@ -1248,33 +1253,151 @@ document.getElementById('closeMobileQuickBtn')?.addEventListener('click', () => 
   document.getElementById('mobileQuickBar')?.classList.add('hidden');
 });
 
-// Bouton export Telegram / Discord
-document.getElementById('copyTelegramBtn')?.addEventListener('click', async () => {
+// ============================================================================
+// PASSERELLE BOT TELEGRAM & EXPERT ADVISOR MT5 (100% GRATUIT)
+// ============================================================================
+const TG_TOKEN_KEY = 'omniroute_tg_token';
+const TG_CHATID_KEY = 'omniroute_tg_chatid';
+const TG_AUTOSEND_KEY = 'omniroute_tg_autosend';
+
+const tgTokenInput = document.getElementById('tgBotToken');
+const tgChatInput = document.getElementById('tgChatId');
+const tgAutoCheck = document.getElementById('tgAutoSendCheck');
+const tgStatusMsg = document.getElementById('tgStatusMsg');
+
+if (tgTokenInput) tgTokenInput.value = localStorage.getItem(TG_TOKEN_KEY) || '';
+if (tgChatInput) tgChatInput.value = localStorage.getItem(TG_CHATID_KEY) || '';
+if (tgAutoCheck) tgAutoCheck.checked = localStorage.getItem(TG_AUTOSEND_KEY) === 'true';
+
+tgTokenInput?.addEventListener('input', e => localStorage.setItem(TG_TOKEN_KEY, e.target.value.trim()));
+tgChatInput?.addEventListener('input', e => localStorage.setItem(TG_CHATID_KEY, e.target.value.trim()));
+tgAutoCheck?.addEventListener('change', e => localStorage.setItem(TG_AUTOSEND_KEY, e.target.checked));
+
+document.getElementById('testTgBtn')?.addEventListener('click', async () => {
+  const token = tgTokenInput?.value.trim();
+  const chatId = tgChatInput?.value.trim();
+  if (!token || !chatId) {
+    alert("Veuillez saisir votre Token Telegram et votre Chat ID d'abord.");
+    return;
+  }
+  const btn = document.getElementById('testTgBtn');
+  btn.textContent = '⏳ Envoi...';
+  try {
+    const res = await fetch('/api/telegram/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        botToken: token,
+        chatId: chatId,
+        message: "🤖 <b>OmniRoute Trading Desk</b>\n\n✅ <b>Connexion réussie !</b>\nVos ordres MT5 seront automatiquement rédigés et envoyés sur ce canal."
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (tgStatusMsg) {
+        tgStatusMsg.textContent = '✅ Connecté avec succès !';
+        tgStatusMsg.style.color = '#34d399';
+      }
+      btn.textContent = '✅ Test réussi !';
+    } else {
+      throw new Error(data.error || 'Erreur Telegram');
+    }
+  } catch (err) {
+    alert(`Erreur de connexion Telegram : ${err.message}`);
+    if (tgStatusMsg) {
+      tgStatusMsg.textContent = '❌ Échec';
+      tgStatusMsg.style.color = '#ef4444';
+    }
+    btn.textContent = '❌ Erreur';
+  }
+  setTimeout(() => (btn.textContent = '⚡ Tester la connexion (Ping)'), 2000);
+});
+
+async function sendCurrentTradeToTelegram(isAuto = false) {
+  const token = tgTokenInput?.value.trim();
+  const chatId = tgChatInput?.value.trim();
+  const btn = document.getElementById('sendTelegramBtn');
+
+  if (!token || !chatId) {
+    if (!isAuto) {
+      const drawer = document.getElementById('telegramDrawer');
+      if (drawer) drawer.open = true;
+      drawer?.scrollIntoView({ behavior: 'smooth' });
+      alert("Veuillez renseigner votre Token Bot Telegram et Chat ID (100% gratuit).");
+    }
+    return;
+  }
+
   const sym = document.getElementById('mt5Symbol')?.textContent || 'XAUUSD';
-  const action = document.getElementById('verdictAction')?.textContent || '--';
-  const type = document.getElementById('mt5Type')?.textContent || '--';
-  const lots = document.getElementById('mt5Lots')?.textContent || '--';
-  const price = document.getElementById('mt5Price')?.textContent || '--';
-  const sl = document.getElementById('mt5SL')?.textContent || '--';
-  const tp = document.getElementById('mt5TP')?.textContent || '--';
+  const action = document.getElementById('verdictAction')?.textContent || 'ATTENDRE';
+  const type = document.getElementById('mt5Type')?.textContent || 'SELL_STOP';
+  const lots = document.getElementById('mt5Lots')?.textContent || '0.10';
+  const price = extractPriceForCopy(document.getElementById('mt5Price')?.textContent) || '0';
+  const sl = extractPriceForCopy(document.getElementById('mt5SL')?.textContent) || '0';
+  const tp = extractPriceForCopy(document.getElementById('mt5TP')?.textContent) || '0';
+  const stopLimit = extractPriceForCopy(document.getElementById('mt5StopLimitPrice')?.textContent) || null;
   const rr = document.getElementById('outRR')?.textContent || '--';
 
-  const text = [
-    `🚨 *SIGNAL TRADING — ${sym}*`,
-    `🎯 *Décision* : ${action}`,
-    `📋 *Type d'ordre* : ${type}`,
-    `🔹 *Entrée* : \`${price}\``,
-    `🛑 *Stop Loss* : \`${sl}\``,
-    `🟢 *Take Profit* : \`${tp}\``,
-    `⚖️ *Ratio R:R* : ${rr}`,
-    `📦 *Volume conseillé* : ${lots}`,
-    `🛡️ *Vérifié par OmniRoute Desk (Zéro Hallucination)*`
-  ].join('\n');
+  if (btn) btn.textContent = '⏳ Envoi...';
 
-  await copyText(text);
-  const btn = document.getElementById('copyTelegramBtn');
-  btn.textContent = '✅ Format Telegram Copié !';
-  setTimeout(() => (btn.textContent = '💬 Format Telegram / Discord'), 1500);
+  const htmlMsg = [
+    `🚨 <b>ORDRE MT5 RECOMMANDÉ — ${sym}</b>`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    `📋 <b>Action :</b> ${action}`,
+    `🎯 <b>Type d'ordre :</b> <code>${type}</code>`,
+    `📦 <b>Volume (Lots) :</b> <code>${lots}</code>`,
+    `🔹 <b>Prix d'Entrée :</b> <code>${price}</code>`,
+    stopLimit ? `🛡️ <b>Prix Stop-Limit :</b> <code>${stopLimit}</code>` : '',
+    `🛑 <b>Stop Loss :</b> <code>${sl}</code>`,
+    `🟢 <b>Take Profit :</b> <code>${tp}</code>`,
+    `⚖️ <b>Ratio R:R :</b> ${rr}`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    `⚡ <b>Commande MT5 Copier :</b>`,
+    `<code>/trade ${sym} ${type} ${lots.replace(/[^0-9.]/g, '')} ${price} ${sl} ${tp}</code>`
+  ].filter(Boolean).join('\n');
+
+  const orderData = {
+    symbol: sym,
+    action: action.includes('ACHETER') ? 'BUY' : 'SELL',
+    order_type: currentActiveOrderType || type,
+    lots: parseFloat(lots) || 0.01,
+    price: parseFloat(price) || 0,
+    stop_limit_price: stopLimit ? parseFloat(stopLimit) : null,
+    sl: parseFloat(sl) || 0,
+    tp: parseFloat(tp) || 0
+  };
+
+  try {
+    const res = await fetch('/api/telegram/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        botToken: token,
+        chatId: chatId,
+        message: htmlMsg,
+        orderData: orderData
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (btn) {
+        btn.textContent = '✅ Envoyé sur Telegram & MT5 !';
+        setTimeout(() => (btn.textContent = '🤖 Envoyer au Bot Telegram / MT5'), 2000);
+      }
+    } else {
+      throw new Error(data.error || 'Erreur Telegram');
+    }
+  } catch (err) {
+    if (btn) {
+      btn.textContent = '❌ Échec Envoi';
+      setTimeout(() => (btn.textContent = '🤖 Envoyer au Bot Telegram / MT5'), 2000);
+    }
+    if (!isAuto) alert(`Erreur lors de l'envoi au bot : ${err.message}`);
+  }
+}
+
+document.getElementById('sendTelegramBtn')?.addEventListener('click', () => {
+  sendCurrentTradeToTelegram(false);
 });
 
 // Bouton export Pine Script pour TradingView

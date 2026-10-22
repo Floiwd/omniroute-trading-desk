@@ -1060,6 +1060,70 @@ async function handleAnalyze(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// PASSERELLE BOT TELEGRAM & EXPERT ADVISOR MT5 (100% GRATUIT)
+// ---------------------------------------------------------------------------
+let latestPendingOrder = null;
+
+async function handleTelegramSend(req, res) {
+  let body;
+  try {
+    body = JSON.parse(await readBody(req));
+  } catch (err) {
+    return sendJson(res, 400, { error: 'JSON attendu.' });
+  }
+
+  const { botToken, chatId, message, orderData } = body || {};
+  if (!botToken || !chatId || !message) {
+    return sendJson(res, 400, { error: 'botToken, chatId et message requis.' });
+  }
+
+  try {
+    const tgUrl = `https://api.telegram.org/bot${encodeURIComponent(botToken.trim())}/sendMessage`;
+    const tgRes = await fetch(tgUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId.trim(),
+        text: message,
+        parse_mode: 'HTML'
+      })
+    });
+    const tgData = await tgRes.json();
+    if (!tgData.ok) {
+      return sendJson(res, 400, { error: `Telegram: ${tgData.description || 'Erreur d’envoi'}` });
+    }
+
+    if (orderData && typeof orderData === 'object') {
+      latestPendingOrder = {
+        id: `order_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        created_at: new Date().toISOString(),
+        ...orderData
+      };
+    }
+
+    return sendJson(res, 200, { ok: true, telegram: tgData.result });
+  } catch (err) {
+    return sendJson(res, 502, { error: `Erreur Telegram : ${err.message}` });
+  }
+}
+
+function handleMt5GetOrder(res) {
+  if (!latestPendingOrder) {
+    return sendJson(res, 200, { has_order: false });
+  }
+  return sendJson(res, 200, { has_order: true, ...latestPendingOrder });
+}
+
+async function handleMt5Confirm(req, res) {
+  let body = {};
+  try { body = JSON.parse(await readBody(req)); } catch {}
+  if (latestPendingOrder && (!body.id || latestPendingOrder.id === body.id)) {
+    latestPendingOrder = null;
+  }
+  return sendJson(res, 200, { ok: true, message: 'Ordre acquitté avec succès' });
+}
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -1067,7 +1131,8 @@ const MIME_TYPES = {
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.mq5': 'text/plain; charset=utf-8'
 };
 
 function serveStatic(req, res) {
@@ -1122,6 +1187,9 @@ const requestHandler = async (req, res) => {
     try {
       if (req.method === 'GET' && url === '/api/status') return await handleStatus(res);
       if (req.method === 'POST' && url === '/api/analyze') return await handleAnalyze(req, res);
+      if (req.method === 'POST' && url === '/api/telegram/send') return await handleTelegramSend(req, res);
+      if (req.method === 'GET' && url === '/api/mt5/orders') return handleMt5GetOrder(res);
+      if (req.method === 'POST' && url === '/api/mt5/confirm') return await handleMt5Confirm(req, res);
     } catch (err) {
       console.error(err);
       if (!res.headersSent) return sendJson(res, 500, { error: err.message || 'Erreur serveur.' });

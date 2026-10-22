@@ -709,6 +709,7 @@ const ORDER_TYPE_DETAILS = {
 };
 
 function renderAnalysisResult(data) {
+  emptyState.classList.add('hidden');
   loadingState.classList.add('hidden');
   resultContainer.classList.remove('hidden');
 
@@ -716,6 +717,18 @@ function renderAnalysisResult(data) {
   const verdict = plan.verdict || {};
   const inputs = plan.essential_order_inputs || {};
   const structure = plan.market_structure_facts || {};
+  const scenarios = plan.conditional_scenarios || {};
+
+  // Remplacement immédiat de toute chaîne "condition d'attente" par de vrais niveaux concrets
+  const isWaitingVal = v => !v || (typeof v === 'string' && (v.includes('attente') || v.includes('DISPONIBLE') || v.includes('--')));
+  if (isWaitingVal(inputs.entry_price)) {
+    const sc = scenarios.breakout || scenarios.pullback;
+    if (sc && sc.entry_price) {
+      inputs.entry_price = sc.entry_price;
+      inputs.stop_loss = sc.stop_loss;
+      inputs.take_profit_1 = sc.take_profit_1;
+    }
+  }
 
   const action = String(verdict.action || 'WAIT').toUpperCase();
   const verdictCard = document.getElementById('verdictCard');
@@ -724,8 +737,8 @@ function renderAnalysisResult(data) {
   const actionLabels = {
     BUY: 'ACHETER (LONG / BUY)',
     SELL: 'VENDRE (SHORT / SELL)',
-    WAIT: 'ATTENDRE (PAS DE SIGNAL CLAIR)',
-    NO_TRADE: 'NE PAS TRADER (PROTECTION CAPITAL)'
+    WAIT: 'ATTENDRE (ZONE DE CONSOLIDATION)',
+    NO_TRADE: 'NE PAS TRADER (PROTECTION DU CAPITAL)'
   };
 
   if (action === 'BUY') verdictCard.classList.add('verdict-buy');
@@ -733,7 +746,7 @@ function renderAnalysisResult(data) {
   else verdictCard.classList.add('verdict-wait');
 
   document.getElementById('verdictAction').textContent = actionLabels[action] || action;
-  document.getElementById('verdictOrderType').textContent = `ORDRE : ${verdict.order_type || 'AUCUN'}`;
+  document.getElementById('verdictOrderType').textContent = (action === 'WAIT') ? 'ORDRES PRÊTS : SELL STOP / SELL LIMIT' : `ORDRE : ${verdict.order_type || 'SELL STOP'}`;
   document.getElementById('confidenceScore').textContent = `${verdict.confidence_score ?? 0}%`;
   document.getElementById('guardStatusBadge').textContent = verdict.hallucination_guard_status || 'VÉRIFIÉ';
   document.getElementById('headlineReason').textContent = verdict.headline_reason || '';
@@ -773,13 +786,19 @@ function renderAnalysisResult(data) {
     if (matchingOption) tfInput.value = matchingOption.value;
   }
 
-  document.getElementById('outEntry').textContent = inputs.entry_price || '--';
-  document.getElementById('outSL').textContent = inputs.stop_loss || '--';
-  document.getElementById('outTP1').textContent = inputs.take_profit_1 || '--';
-  document.getElementById('outTP2').textContent = inputs.take_profit_2 || '--';
+  const elEntry = document.getElementById('outEntry');
+  if (elEntry) elEntry.textContent = inputs.entry_price || '--';
+  const elSL = document.getElementById('outSL');
+  if (elSL) elSL.textContent = inputs.stop_loss || '--';
+  const elTP1 = document.getElementById('outTP1');
+  if (elTP1) elTP1.textContent = inputs.take_profit_1 || '--';
+  const elTP2 = document.getElementById('outTP2');
+  if (elTP2) elTP2.textContent = inputs.take_profit_2 || '--';
 
-  document.getElementById('outRR').textContent = inputs.risk_reward_ratio || inputs.calculated_rr_tp1 || '--';
-  document.getElementById('outRiskPct').textContent = inputs.recommended_risk_pct || '--';
+  const elRR = document.getElementById('outRR');
+  if (elRR) elRR.textContent = inputs.risk_reward_ratio || inputs.calculated_rr_tp1 || '--';
+  const elRiskPct = document.getElementById('outRiskPct');
+  if (elRiskPct) elRiskPct.textContent = inputs.recommended_risk_pct || '--';
 
   // Calcul perte max en devise (avec capital auto-détecté ou saisi)
   const currentCapVal = parseFloat(document.getElementById('capitalInput')?.value) || inputs.account_capital || 10000;
@@ -1188,6 +1207,11 @@ document.getElementById('copyAllMt5Btn')?.addEventListener('click', (e) => {
 // Bouton copier dans la barre flottante mobile
 document.getElementById('mobileQuickCopyBtn')?.addEventListener('click', (e) => {
   handleCopyFullMt5Ticket(e.currentTarget);
+});
+
+// Bouton fermer la barre flottante mobile
+document.getElementById('closeMobileQuickBtn')?.addEventListener('click', () => {
+  document.getElementById('mobileQuickBar')?.classList.add('hidden');
 });
 
 // Bouton export Telegram / Discord

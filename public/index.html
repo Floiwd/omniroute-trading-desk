@@ -245,13 +245,20 @@
           <p id="headlineReason" class="headline-reason"></p>
         </div>
 
-        <!-- TICKET D'ORDRE : UNIQUEMENT LES INFOS À METTRE SUR MT4/MT5/TRADINGVIEW -->
-        <div class="card ticket-card">
+        <!-- FICHE D'ORDRE MT5 EXPRESS UNIQUE & CONCISE (TOUCHE F9 DANS METATRADER 5) -->
+        <div class="card mt5-order-slip">
           <div class="card-header">
-            <h2>🎯 Infos Essentielles à saisir sur votre plateforme</h2>
-            <button id="copyTicketBtn" class="btn-small">📋 Copier le ticket</button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="mt5-logo-badge">MT5</div>
+              <div>
+                <h2 style="font-size: 16px; margin: 0; color: #ffffff;">Fiche d'Ordre MT5 Express (Touche F9)</h2>
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">Valeurs prêtes à saisir directement dans MetaTrader 5</p>
+              </div>
+            </div>
+            <span class="mt5-asset-type-badge" id="mt5AssetTypeBadge">Forex / CFD</span>
           </div>
 
+          <!-- Bandeau d'infos de marché lues sur le graphique -->
           <div class="asset-strip">
             <div class="asset-item">
               <span class="lbl">ACTIF LU</span>
@@ -271,63 +278,14 @@
             </div>
           </div>
 
-          <div class="levels-grid">
-            <div class="level-box entry-box">
-              <div class="level-head">
-                <span>🔵 PRIX D'ENTRÉE</span>
-                <button class="copy-val-btn" data-target="outEntry" title="Copier">Copier</button>
-              </div>
-              <div id="outEntry" class="level-value">--</div>
-            </div>
-
-            <div class="level-box sl-box">
-              <div class="level-head">
-                <span>🛑 STOP LOSS (OBLIGATOIRE)</span>
-                <button class="copy-val-btn" data-target="outSL" title="Copier">Copier</button>
-              </div>
-              <div id="outSL" class="level-value">--</div>
-            </div>
-
-            <div class="level-box tp1-box">
-              <div class="level-head">
-                <span>🟢 TAKE PROFIT 1 (Sécurisation)</span>
-                <button class="copy-val-btn" data-target="outTP1" title="Copier">Copier</button>
-              </div>
-              <div id="outTP1" class="level-value">--</div>
-            </div>
-
-            <div class="level-box tp2-box">
-              <div class="level-head">
-                <span>🎯 TAKE PROFIT 2 (Final)</span>
-                <button class="copy-val-btn" data-target="outTP2" title="Copier">Copier</button>
-              </div>
-              <div id="outTP2" class="level-value">--</div>
-            </div>
-          </div>
-
-          <div class="risk-strip">
-            <div class="risk-pill">
-              <span>Ratio Risque / Gain :</span>
-              <strong id="outRR">--</strong>
-            </div>
-            <div class="risk-pill">
-              <span>Risque conseillé :</span>
-              <strong id="outRiskPct">--</strong>
-            </div>
-            <div class="risk-pill">
-              <span>Perte max autorisée (€/$) :</span>
-              <strong id="outMaxLossMoney">--</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- FICHE D'ORDRE MT5 EXPRESS (TOUCHE F9 DANS METATRADER 5) -->
-        <div class="card mt5-order-slip">
-          <div class="card-header">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div class="mt5-logo-badge">MT5</div>
-              <div>
-                <h2 style="font-size: 16px; margin: 0; color: #ffffff;">Fiche d'Ordre MT5 Express (Touche F9)</h2>
+          <!-- Spans de rétrocompatibilité masqués -->
+          <span id="outEntry" class="hidden">--</span>
+          <span id="outSL" class="hidden">--</span>
+          <span id="outTP1" class="hidden">--</span>
+          <span id="outTP2" class="hidden">--</span>
+          <span id="outRR" class="hidden">--</span>
+          <span id="outRiskPct" class="hidden">--</span>
+          <span id="outMaxLossMoney" class="hidden">--</span>
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">Reportez directement ces valeurs dans MetaTrader 5 sans aucun doute</p>
               </div>
             </div>
@@ -534,7 +492,10 @@
       <span id="mobileQuickSymbol" class="mobile-quick-symbol">--</span>
       <span id="mobileQuickLots" class="mobile-quick-lots">-- lots</span>
     </div>
-    <button type="button" id="mobileQuickCopyBtn" class="mobile-quick-btn">📋 Copier MT5</button>
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <button type="button" id="mobileQuickCopyBtn" class="mobile-quick-btn">📋 Copier MT5</button>
+      <button type="button" id="closeMobileQuickBtn" class="mobile-quick-close" aria-label="Fermer la barre">✕</button>
+    </div>
   </div>
 
   <script src="app.js"></script>

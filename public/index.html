@@ -20,15 +20,18 @@
     </div>
 
     <div class="connection-bar">
-      <div id="omniStatusBadge" class="status-badge checking">
+      <div id="omniStatusBadge" class="status-badge checking" title="Statut de l'IA">
         <span class="dot"></span>
-        <span id="omniStatusText">Connexion à OmniRoute...</span>
+        <span id="omniStatusText" class="status-text-full">Connexion à OmniRoute...</span>
+        <span class="status-text-mobile">Prêt</span>
       </div>
-      <button id="soundToggleBtn" class="btn-ghost" title="Activer / Couper les sons de fin d'analyse">
-        🔔 Son : Actif
+      <button id="soundToggleBtn" class="btn-ghost sound-btn" title="Activer / Couper les sons de fin d'analyse">
+        <span id="soundIcon" class="btn-icon">🔔</span>
+        <span id="soundText" class="btn-text">Son : Actif</span>
       </button>
-      <button id="toggleKeyBtn" class="btn-ghost" title="Configurer ou vérifier la clé OmniRoute">
-        ⚙️ Clé API &amp; mode : <span id="maskedKeyLabel">Auto (Keychain)</span>
+      <button id="toggleKeyBtn" class="btn-ghost key-btn" title="Configurer ou vérifier la clé OmniRoute">
+        <span class="btn-icon">⚙️</span>
+        <span class="btn-text">Clé : <span id="maskedKeyLabel">Auto (Keychain)</span></span>
       </button>
     </div>
   </header>
@@ -66,10 +69,13 @@
   <main class="workspace">
     <!-- COLONNE GAUCHE : DÉPÔT CAPTURE & PARAMÈTRES -->
     <section class="left-panel">
-      <div class="card">
+      <div class="card chart-upload-card">
         <div class="card-header">
           <h2>1. Capture d'écran du graphique</h2>
-          <span class="badge-hint">Glisser-déposer ou Cmd+V</span>
+          <span class="badge-hint">
+            <span class="badge-desktop">Glisser-déposer ou Cmd+V</span>
+            <span class="badge-mobile">Photo / Galerie</span>
+          </span>
         </div>
 
         <div id="dropZone" class="drop-zone" tabindex="0">
@@ -77,8 +83,14 @@
           <div id="dropPlaceholder" class="drop-placeholder">
             <div class="upload-icon">📈</div>
             <p class="drop-title">Déposez votre capture TradingView / MT5 ici</p>
-            <p class="drop-sub">ou appuyez sur <kbd>⌘ Cmd</kbd> + <kbd>V</kbd> pour coller directement depuis le presse-papiers</p>
-            <button type="button" id="browseBtn" class="btn-secondary">Choisir une image</button>
+            <p class="drop-sub">
+              <span class="drop-sub-desktop">ou appuyez sur <kbd>⌘ Cmd</kbd> + <kbd>V</kbd> pour coller depuis le presse-papiers</span>
+              <span class="drop-sub-mobile">ou touchez pour sélectionner depuis la galerie / appareil photo</span>
+            </p>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+              <button type="button" id="browseBtn" class="btn-secondary">Choisir une image</button>
+              <button type="button" id="demoChartBtn" class="btn-ghost">Tester un graphique démo</button>
+            </div>
           </div>
 
           <div id="previewContainer" class="preview-container hidden">
@@ -87,17 +99,22 @@
               <canvas id="chartOverlayCanvas"></canvas>
             </div>
             <div class="preview-actions">
-              <button type="button" id="changeImageBtn" class="btn-small">Changer l'image</button>
-              <button type="button" id="toggleOverlayBtn" class="btn-small active">👁️ Masquer les niveaux</button>
+              <button type="button" id="changeImageBtn" class="btn-small">🔄 Changer</button>
+              <button type="button" id="toggleOverlayBtn" class="btn-small active hidden">👁️ Niveaux</button>
               <button type="button" id="fullscreenBtn" class="btn-small">🔍 Agrandir</button>
-              <button type="button" id="demoChartBtn" class="btn-small">Tester un graphique démo</button>
             </div>
+            <!-- BOUTON D'ACTION IMMÉDIATE DIRECTEMENT SOUS LE GRAPHIQUE -->
+            <button type="button" id="quickAnalyzeBtn" class="btn-primary btn-quick-analyze" disabled>
+              🔍 Analyser ce graphique (Mode Zéro Hallucination)
+            </button>
           </div>
         </div>
 
         <div class="safety-rule-banner">
-          <strong>⚠️ Règle d'or pour éviter toute hallucination :</strong>
-          Assurez-vous que <u>l'échelle des prix à droite</u> et <u>le nom de l'actif / unité de temps</u> sont bien visibles sur la capture. Si l'axe des prix est coupé, l'IA bloquera automatiquement l'ordre.
+          <span class="safety-icon">💡</span>
+          <div class="safety-text">
+            <strong>Règle d'or :</strong> L'axe des prix à droite et le nom de l'actif doivent être bien visibles sur la capture pour éviter toute hallucination.
+          </div>
         </div>
       </div>
 

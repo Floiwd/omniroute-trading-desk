@@ -53,12 +53,25 @@ analysisModeSelect.addEventListener('change', () => localStorage.setItem('analys
 // Système audio Web Audio API pour les alertes de fin d'analyse
 let soundEnabled = localStorage.getItem('omniroute_sound_enabled') !== 'false';
 const soundToggleBtn = document.getElementById('soundToggleBtn');
+
+function updateSoundToggleUI() {
+  if (!soundToggleBtn) return;
+  const iconSpan = document.getElementById('soundIcon');
+  const textSpan = document.getElementById('soundText');
+  if (iconSpan && textSpan) {
+    iconSpan.textContent = soundEnabled ? '🔔' : '🔕';
+    textSpan.textContent = soundEnabled ? 'Son : Actif' : 'Son : Muet';
+  } else {
+    soundToggleBtn.textContent = soundEnabled ? '🔔 Son : Actif' : '🔕 Son : Muet';
+  }
+}
+
 if (soundToggleBtn) {
-  soundToggleBtn.textContent = soundEnabled ? '🔔 Son : Actif' : '🔕 Son : Muet';
+  updateSoundToggleUI();
   soundToggleBtn.addEventListener('click', () => {
     soundEnabled = !soundEnabled;
     localStorage.setItem('omniroute_sound_enabled', String(soundEnabled));
-    soundToggleBtn.textContent = soundEnabled ? '🔔 Son : Actif' : '🔕 Son : Muet';
+    updateSoundToggleUI();
     if (soundEnabled) playChime('trade');
   });
 }
@@ -229,6 +242,10 @@ function setChartImage(dataUrl) {
   dropPlaceholder.classList.add('hidden');
   previewContainer.classList.remove('hidden');
   analyzeBtn.disabled = false;
+  const quickBtn = document.getElementById('quickAnalyzeBtn');
+  if (quickBtn) quickBtn.disabled = false;
+  const toggleOverlayBtn = document.getElementById('toggleOverlayBtn');
+  if (toggleOverlayBtn) toggleOverlayBtn.classList.add('hidden');
 }
 
 // Réduit uniquement les images très lourdes (limite Vercel 4,5 Mo + vitesse d'envoi),
@@ -465,6 +482,12 @@ analyzeBtn.addEventListener('click', async () => {
   resultContainer.classList.add('hidden');
   loadingState.classList.remove('hidden');
   analyzeBtn.disabled = true;
+  const quickBtn = document.getElementById('quickAnalyzeBtn');
+  if (quickBtn) {
+    quickBtn.disabled = true;
+    quickBtn.textContent = '⏳ Analyse en cours...';
+  }
+  loadingState.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   // Barre de progression calée sur la durée typique du mode choisi
   const progressBar = document.getElementById('analysisProgressBar');
@@ -548,7 +571,17 @@ analyzeBtn.addEventListener('click', async () => {
     errorMessage.textContent = msg;
   } finally {
     analyzeBtn.disabled = false;
+    const quickBtn = document.getElementById('quickAnalyzeBtn');
+    if (quickBtn) {
+      quickBtn.disabled = false;
+      quickBtn.textContent = '🔍 Analyser ce graphique (Mode Zéro Hallucination)';
+    }
   }
+});
+
+// Bouton d'analyse rapide directement sous le graphique
+document.getElementById('quickAnalyzeBtn')?.addEventListener('click', () => {
+  analyzeBtn.click();
 });
 
 // 5. Affichage clair des résultats essentiels
@@ -785,6 +818,16 @@ function renderAnalysisResult(data) {
 
   // 4. Alerte sonore professionnelle
   playChime(action === 'BUY' || action === 'SELL' ? 'trade' : 'wait');
+
+  // 5. Affichage du bouton de niveaux & défilement fluide
+  const toggleOverlayBtn = document.getElementById('toggleOverlayBtn');
+  if (toggleOverlayBtn && (action === 'BUY' || action === 'SELL')) {
+    toggleOverlayBtn.classList.remove('hidden');
+  }
+
+  setTimeout(() => {
+    resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 120);
 }
 
 function fillList(id, items) {

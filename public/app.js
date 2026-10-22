@@ -56,6 +56,12 @@ async function checkOmniRouteStatus() {
     const res = await fetch('/api/status', { cache: 'no-store' });
     const data = await readJsonResponse(res);
 
+    if (res.ok && data.activeProvider === 'openrouter') {
+      omniStatusBadge.className = 'status-badge online';
+      omniStatusText.textContent = 'IA en ligne prête (OpenRouter Vision)';
+      maskedKeyLabel.textContent = `${data.maskedOpenrouterKey || 'Actif côté serveur'}`;
+      return;
+    }
     if (res.ok && data.activeProvider === 'omniroute') {
       omniStatusBadge.className = 'status-badge online';
       omniStatusText.textContent = `OmniRoute connecté (${data.modelCount} modèles)`;
@@ -66,6 +72,12 @@ async function checkOmniRouteStatus() {
       omniStatusBadge.className = 'status-badge online';
       omniStatusText.textContent = 'Gemini API connectée (clé directe)';
       maskedKeyLabel.textContent = `${data.maskedGeminiKey}`;
+      return;
+    }
+    if (res.ok && data.activeProvider === 'grok') {
+      omniStatusBadge.className = 'status-badge online';
+      omniStatusText.textContent = 'Grok xAI Vision connecté';
+      maskedKeyLabel.textContent = 'Actif côté serveur';
       return;
     }
   } catch {

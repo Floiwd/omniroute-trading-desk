@@ -59,14 +59,14 @@ const PROFILES = {
     }
   },
   openrouter: {
-    rapide: { primary: ['google/gemini-2.5-flash', 'google/gemini-flash-1.5'], verifier: null },
+    rapide: { primary: ['google/gemini-2.5-flash', 'nvidia/nemotron-3.5-super-vl:free'], verifier: null },
     precis: {
-      primary: ['google/gemini-2.5-flash', 'google/gemini-flash-1.5'],
-      verifier: ['google/gemini-flash-1.5', 'meta-llama/llama-3.2-11b-vision-instruct']
+      primary: ['google/gemini-2.5-flash', 'nvidia/nemotron-3.5-super-vl:free'],
+      verifier: null
     },
     ultra: {
-      primary: ['google/gemini-2.5-pro', 'anthropic/claude-3.5-sonnet'],
-      verifier: ['google/gemini-2.5-flash']
+      primary: ['google/gemini-2.5-flash', 'nvidia/nemotron-3.5-super-vl:free'],
+      verifier: ['nvidia/nemotron-3.5-super-vl:free']
     }
   },
   grok: {
@@ -162,22 +162,22 @@ async function resolveProvider(customApiKey) {
     return { name: 'omniroute', base: OMNIROUTE_BASE, apiKey: omniKey, source: 'trousseau (OmniRoute)' };
   }
 
-  // 2. Grok (xAI) côté serveur si configuré
+  // 2. OpenRouter côté serveur si configuré (Recommandé en production cloud / Vercel)
+  const openrouterKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  if (openrouterKey) {
+    return { name: 'openrouter', base: OPENROUTER_BASE, apiKey: openrouterKey, source: 'serveur (OpenRouter)' };
+  }
+
+  // 3. Grok (xAI) côté serveur si configuré
   const xaiKey = (process.env.XAI_API_KEY || process.env.GROK_API_KEY || '').trim();
   if (xaiKey) {
     return { name: 'grok', base: XAI_BASE, apiKey: xaiKey, source: 'serveur (Grok xAI)' };
   }
 
-  // 3. Groq (LPU) côté serveur si configuré
+  // 4. Groq (LPU) côté serveur si configuré
   const groqKey = (process.env.GROQ_API_KEY || '').trim();
   if (groqKey) {
     return { name: 'groq', base: GROQ_BASE, apiKey: groqKey, source: 'serveur (Groq)' };
-  }
-
-  // 4. OpenRouter côté serveur si configuré
-  const openrouterKey = (process.env.OPENROUTER_API_KEY || '').trim();
-  if (openrouterKey) {
-    return { name: 'openrouter', base: OPENROUTER_BASE, apiKey: openrouterKey, source: 'serveur (OpenRouter)' };
   }
 
   // 5. Clé Gemini (Trousseau ou variable d'environnement GEMINI_API_KEY)
@@ -318,7 +318,8 @@ async function callModel(provider, spec, messages, { timeoutMs, signal }) {
     model,
     temperature: 0,
     messages,
-    response_format: { type: 'json_object' }
+    response_format: { type: 'json_object' },
+    max_tokens: 1500
   };
   if (effort) body.reasoning_effort = effort;
 
@@ -831,8 +832,14 @@ function readBody(req) {
 async function handleStatus(res) {
   const omniKey = getOmniRouteKey();
   const geminiKey = getGeminiKey();
+  const openrouterKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  const xaiKey = (process.env.XAI_API_KEY || process.env.GROK_API_KEY || '').trim();
+  const groqKey = (process.env.GROQ_API_KEY || '').trim();
   const omni = await isOmniRouteOnline(omniKey);
-  const activeProvider = omni.online && omniKey ? 'omniroute' : geminiKey ? 'gemini' : null;
+  const activeProvider = (omni.online && omniKey)
+    ? 'omniroute'
+    : (openrouterKey ? 'openrouter' : (geminiKey ? 'gemini' : (xaiKey ? 'grok' : (groqKey ? 'groq' : null))));
+
   return sendJson(res, 200, {
     activeProvider,
     omnirouteOnline: omni.online,
@@ -841,7 +848,9 @@ async function handleStatus(res) {
     hasKeychainKey: Boolean(omniKey),
     maskedKey: maskKey(omniKey),
     hasGeminiKey: Boolean(geminiKey),
-    maskedGeminiKey: maskKey(geminiKey)
+    maskedGeminiKey: maskKey(geminiKey),
+    hasOpenrouterKey: Boolean(openrouterKey),
+    maskedOpenrouterKey: maskKey(openrouterKey)
   });
 }
 

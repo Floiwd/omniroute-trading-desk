@@ -59,14 +59,14 @@ const PROFILES = {
     }
   },
   openrouter: {
-    rapide: { primary: ['google/gemini-2.5-flash', 'nvidia/nemotron-3.5-super-vl:free'], verifier: null },
+    rapide: { primary: ['google/gemini-2.5-flash', 'openai/gpt-4o-mini'], verifier: null },
     precis: {
-      primary: ['google/gemini-2.5-flash', 'nvidia/nemotron-3.5-super-vl:free'],
+      primary: ['google/gemini-2.5-flash', 'openai/gpt-4o-mini'],
       verifier: null
     },
     ultra: {
-      primary: ['google/gemini-2.5-flash', 'nvidia/nemotron-3.5-super-vl:free'],
-      verifier: ['nvidia/nemotron-3.5-super-vl:free']
+      primary: ['google/gemini-2.5-flash', 'openai/gpt-4o'],
+      verifier: ['openai/gpt-4o-mini']
     }
   },
   grok: {

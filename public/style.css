@@ -1824,26 +1824,50 @@ kbd {
     padding: 6px 10px;
   }
 
-  /* Workspace en 1 seule colonne */
+  /* Workspace en 1 seule colonne avec marges adaptées */
   .workspace {
-    margin: 10px auto;
-    padding: 0 10px 20px;
+    margin: 8px auto;
+    padding: 0 10px 24px;
     grid-template-columns: 1fr;
     gap: 14px;
   }
 
   .card {
-    padding: 14px;
-    border-radius: 10px;
+    padding: 16px 14px;
+    border-radius: 14px;
   }
 
-  /* Zone d'upload optimisée au toucher */
+  /* Éviter tout zoom intempestif d'iOS Safari sur les champs */
+  input,
+  select,
+  textarea,
+  .field input[type="text"],
+  .field input[type="number"],
+  .field select {
+    font-size: 16px !important;
+  }
+
+  /* Zone d'upload mobile épurée et thumb-friendly */
   .upload-zone {
     padding: 24px 14px;
   }
 
   .upload-icon {
-    font-size: 34px;
+    font-size: 42px;
+    margin-bottom: 6px;
+  }
+
+  .drop-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.35;
+  }
+
+  .drop-sub {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 4px;
   }
 
   .upload-cta-wrap {
@@ -1851,104 +1875,210 @@ kbd {
     flex-direction: column;
     gap: 10px;
     width: 100%;
-    margin-top: 14px;
+    margin-top: 16px;
   }
 
   .btn-mobile-upload {
     width: 100%;
-    min-height: 52px;
-    font-size: 16px;
-    font-weight: 700;
-    border-radius: 12px;
+    min-height: 56px;
+    font-size: 17px;
+    font-weight: 800;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    letter-spacing: 0.2px;
   }
 
   .btn-mobile-demo {
-    font-size: 13px;
+    font-size: 14px;
     padding: 10px;
-    color: #94a3b8;
+    color: #a5b4fc;
+    min-height: 44px;
+  }
+
+  .safety-rule-banner {
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 12px;
+    border-radius: 10px;
+  }
+
+  .safety-icon {
+    font-size: 20px;
   }
 
   .btn-quick-analyze {
     width: 100%;
-    min-height: 52px;
-    font-size: 16px;
-    font-weight: 700;
-    border-radius: 12px;
-    margin-top: 12px;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: 800;
+    border-radius: 14px;
+    margin-top: 14px;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
   }
 
-  /* Accordéon contextuel sur mobile : fermé par défaut, élégant et compact */
+  /* Accordéon contextuel sur mobile : fermé par défaut, élégant et lisible */
   .context-card {
-    padding: 12px 14px;
-    background: rgba(15, 23, 42, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .context-details summary {
-    padding: 4px 0;
+    padding: 6px 0;
   }
 
   .context-title {
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #f8fafc;
   }
 
   .context-subtitle {
-    font-size: 11px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+
+  .summary-arrow {
+    font-size: 16px;
   }
 
   .context-body {
-    padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin-top: 10px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 12px;
   }
 
   .form-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  /* Grille MT5 sur mobile : boutons de copie larges pour le pouce */
+  .field label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 6px;
+  }
+
+  /* Barre d'onglets de types d'ordres MT5 sur smartphone */
+  .order-tabs-wrapper {
+    margin: 14px 0 10px 0;
+  }
+
+  .order-tabs-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .order-tabs-scroll {
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .order-tab-btn {
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px 14px;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  /* Grille MT5 sur mobile : cartes contrastées, gros chiffres et bouton copie 48px */
   .mt5-fields-grid {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 10px;
+    margin-top: 12px;
   }
 
   .mt5-field {
-    padding: 10px 14px;
-    min-height: 52px;
+    padding: 12px 16px;
+    min-height: 64px;
+    border-radius: 12px;
+    background: #0f172a;
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
   }
 
-  .copy-btn-mini {
-    min-width: 44px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.12);
+  .mt5-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
   }
 
   .mt5-val {
-    font-size: 16px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff;
   }
 
   .mt5-lots-val {
-    font-size: 18px;
+    font-size: 26px;
+    font-weight: 900;
+    color: #34d399;
+  }
+
+  .mt5-field-sl .mt5-val {
+    color: #f87171;
+  }
+
+  .mt5-field-tp .mt5-val {
+    color: #34d399;
+  }
+
+  .copy-btn-mini {
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
   }
 
   /* Ajusteur de risque sur mobile */
   .mt5-risk-adjuster {
+    padding: 14px;
+    border-radius: 12px;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(99, 102, 241, 0.3);
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+  }
+
+  .adjuster-item {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .adjuster-item input[type="number"] {
+    width: 130px;
+    padding: 8px 12px;
+    font-size: 16px !important;
+    font-weight: 800;
+    border-radius: 8px;
+    text-align: center;
+    background: #0b1120;
+    color: #ffffff;
+    border: 1.5px solid #3b82f6;
   }
 
   .risk-pills-row {
@@ -1959,24 +2089,35 @@ kbd {
   }
 
   .risk-pill-btn {
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 4px;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 8px;
+  }
+
+  #liveRiskSummary {
+    font-size: 14px;
+    line-height: 1.5;
+    padding-top: 4px;
   }
 
   /* Boutons d'export MT5 sur mobile */
   .mt5-export-bar {
     flex-direction: column;
+    gap: 10px;
   }
 
   .btn-export-primary,
   .btn-export-secondary {
     width: 100%;
-    min-height: 44px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 10px;
   }
 
   /* Niveaux de prix (Entrée, SL, TP) empilés lisibles */
@@ -1986,27 +2127,40 @@ kbd {
   }
 
   .level-box {
-    padding: 10px 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
   }
 
   .copy-val-btn {
-    min-width: 44px;
-    min-height: 38px;
-    padding: 6px 12px;
+    min-width: 48px;
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 700;
   }
 
   .asset-strip {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .asset-item {
+    padding: 10px 12px;
+  }
+
+  .asset-item strong {
+    font-size: 16px;
   }
 
   .risk-strip {
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   .risk-pill {
     justify-content: space-between;
+    padding: 10px 14px;
+    font-size: 14px;
   }
 
   .journal-wrapper {
